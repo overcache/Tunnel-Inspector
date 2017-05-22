@@ -37,16 +37,16 @@ function get(db, sql) {
   })
 }
 
-// function stmtRun(stmt, values) {
-  // return new Promise((resolve, reject) => {
-    // stmt.run(values, (err) => {
-      // if (err) {
-        // reject(err)
-      // }
-      // resolve()
-    // })
-  // })
-// }
+function stmtRun(stmt, values) {
+  return new Promise((resolve, reject) => {
+    stmt.run(values, (err) => {
+      if (err) {
+        reject(err)
+      }
+      resolve()
+    })
+  })
+}
 
 function all(db, sql) {
   return new Promise((resolve, reject) => {
@@ -113,8 +113,8 @@ function createBusinessesTable(db) {
 }
 
 function extractTunnels(db, file, callback) {
-  const rs = fs.createReadStream(file, { encoding: "UTF8" })
-  const lineReader = readline.createInterface({ input: rs })
+  const LBL = require("n-readlines")
+  const liner = new LBL(file)
 
   const tunnelPatten = /^[是|否],[是|否]?,\d*?,.*?,\d+?,[单|双]向,/i
   const header = "导入网管*,是否反向业务*,OID,Tunnel 名称*,Tunnel ID*,业务方向*,静态 CR Tunnel参数模板*,备注,网元*,端口,标签*,Tunnel接口,绑定到Tunnel策略,下一跳,网元*,端口,标签*,反向Tunnel接口,反向下一跳,自动计算路由*,约束粒度,约束类型,约束节点,网元,入端口,入标签,出端口,出标签,下一跳,Tunnel源节点 Tunnel OAM模板名称,Tunnel宿节点Tunnel OAM模板名称,OAM反向Tunnel,Tunnel源节点 Tunnel TPOAM模板名称,Tunnel宿节点Tunnel TPOAM模板名称,导入结果"
@@ -122,7 +122,9 @@ function extractTunnels(db, file, callback) {
 
   let begin = false
   const segments = []
-  lineReader.on("line", (line) => {
+
+  let line
+  while (line = liner.next()) {
     if (!begin) {
       if (line.indexOf(header) >= 0) {
         begin = true
@@ -135,8 +137,6 @@ function extractTunnels(db, file, callback) {
           parse(row, (err, output) => {
             const value = output[0]
             if (value) {
-              // console.log(record)
-              // assert.equal(record, null)
               stmt.run(value[4], value[3], value[8],
                 value[9], value[14], value[15], value[23], value[24], value[26])
             }
@@ -145,23 +145,20 @@ function extractTunnels(db, file, callback) {
       }
       segments.push(line)
     }
-  })
-
-  lineReader.on("close", async () => {
-    if (segments) {
-      const row = segments.join("\n")
-      parse(row, (err, output) => {
-        const value = output[0]
-        if (value) {
-          stmt.run(value[4], value[3], value[8],
-            value[9], value[14], value[15], value[23], value[24], value[26])
-          stmt.finalize(callback)
-        }
-      })
-    } else {
-      stmt.finalize(callback)
-    }
-  })
+  }
+  if (segments) {
+    const row = segments.join("\n")
+    parse(row, (err, output) => {
+      const value = output[0]
+      if (value) {
+        stmt.run(value[4], value[3], value[8],
+          value[9], value[14], value[15], value[23], value[24], value[26])
+        stmt.finalize(callback)
+      }
+    })
+  } else {
+    stmt.finalize(callback)
+  }
 }
 
 function extractTunnelsPromise(db, file) {
