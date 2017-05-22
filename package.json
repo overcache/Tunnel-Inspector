@@ -1,0 +1,33 @@
+{
+  "name": "tunnelinspector",
+  "version": "0.0.1",
+  "description": "CMCC tunnel inspector",
+  "main": "main.js",
+  "scripts": {
+    "test": "mocha",
+    "start": "electron ."
+  },
+  "keywords": [
+    "cmcc",
+    "tunnel"
+  ],
+  "author": "icymind (icymindt@gmail.com)",
+  "license": "ISC",
+  "dependencies": {
+    "csv-parse": "^1.2.0",
+    "electron": "^1.7.0",
+    "exceljs": "^0.4.9",
+    "glob-promise": "^3.1.0",
+    "semantic-ui": "^2.2.10",
+    "sqlite": "^2.7.0",
+    "sqlite3": "^3.1.8",
+    "xlsx": "^0.10.1"
+  },
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "electron-rebuild": "^1.5.11",
+    "mocha": "^3.4.1",
+    "object-sizeof": "^1.2.0",
+    "rewire": "^2.5.2"
+  }
+}
