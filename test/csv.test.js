@@ -6,8 +6,9 @@ const sqlite3 = require("sqlite3").verbose()
 const csv = require(path.join(__dirname, "../csv.js"))
 const dbpath =path.join(__dirname, "aa.db")
 const tunnelsPath = path.join(__dirname, "CMCC/LTE业务Tunnel信息表.csv")
-const nonLteTunnelsPath = "/Users/simon/Downloads/CMCC/非LTE业务Tunnel信息表.csv"
+const nonLTETunnelsPath = "/Users/simon/Downloads/CMCC/非LTE业务Tunnel信息表.csv"
 const ltePath = path.join(__dirname, "CMCC/LTE业务信息表.csv")
+const nonLTEPath = ["/Users/simon/Downloads/CMCC/非LTE业务CES.csv", "/Users/simon/Downloads/CMCC/非LTE业务ETH.csv"]
 
 
 describe("Test module csv", function () {
@@ -16,11 +17,14 @@ describe("Test module csv", function () {
   before(async function () {
     const db = new sqlite3.Database(dbpath)
     // await csv.createTunnelsTable(db, "lte")
-    // await csv.createBusinessesTable(db, "lte")
+    // await csv.createBusinessesTable(db)
     // await csv.createTunnelsTable(db, "non_lte")
-    // await csv.extractTunnelsPromise(db, tunnelsPath, "lte")
-    // await csv.extractTunnelsPromise(db, nonLteTunnelsPath, "non_lte")
-    // await csv.extractBusinessesPromise(db, ltePath)
+    await csv.createNonLTEBusinessesTable(db)
+    // await csv.extractTunnelsPromise(db, LTETunnelsPath, "lte")
+    // await csv.extractTunnelsPromise(db, nonLTETunnelsPath, "non_lte")
+    // await csv.extractBusinessesPromise(db, LTEPath)
+    await csv.extractNonLTEBusinessesPromise(db, nonLTEPath[0], "ces")
+    await csv.extractNonLTEBusinessesPromise(db, nonLTEPath[1], "eth")
     await csv.close(db)
   })
 
@@ -40,6 +44,14 @@ describe("Test module csv", function () {
     const db = new sqlite3.Database(dbpath)
     const { count } = await csv.get(db, "select count(*) as count from lte_businesses")
     expect(count).to.be.equal(9586)
+  })
+
+  it("total non-businesses records", async function () {
+    const db = new sqlite3.Database(dbpath)
+    const { count } = await csv.get(db, "select count(*) as count from non_lte_businesses")
+    // ETH: (1814-8)/2
+    // CES: (17880-8)/2
+    expect(count).to.be.equal(9839)
   })
 
   it("extractTunnels", async function () {
