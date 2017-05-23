@@ -1,6 +1,8 @@
 const fs = require("fs")
 const readline = require("readline")
+const lineReader = require("line-reader")
 const parse = require("csv-parse")
+const parseSync = require("csv-parse/lib/sync")
 // const sqlite3 = require("sqlite3").verbose()
 const assert = require("assert")
 // const { expect } = require("chai")
@@ -37,12 +39,10 @@ function get(db, sql) {
   })
 }
 
-function stmtRun(stmt, values) {
+function stmtRun(db, stmt, values) {
   return new Promise((resolve, reject) => {
-    stmt.run(values, (err) => {
-      if (err) {
-        reject(err)
-      }
+    db.serialize(() => {
+      stmt.run(values)
       resolve()
     })
   })
@@ -113,52 +113,26 @@ function createBusinessesTable(db) {
 }
 
 function extractTunnels(db, file, callback) {
-  const LBL = require("n-readlines")
-  const liner = new LBL(file)
-
   const tunnelPatten = /^[是|否],[是|否]?,\d*?,.*?,\d+?,[单|双]向,/i
   const header = "导入网管*,是否反向业务*,OID,Tunnel 名称*,Tunnel ID*,业务方向*,静态 CR Tunnel参数模板*,备注,网元*,端口,标签*,Tunnel接口,绑定到Tunnel策略,下一跳,网元*,端口,标签*,反向Tunnel接口,反向下一跳,自动计算路由*,约束粒度,约束类型,约束节点,网元,入端口,入标签,出端口,出标签,下一跳,Tunnel源节点 Tunnel OAM模板名称,Tunnel宿节点Tunnel OAM模板名称,OAM反向Tunnel,Tunnel源节点 Tunnel TPOAM模板名称,Tunnel宿节点Tunnel TPOAM模板名称,导入结果"
   const stmt = db.prepare("insert into tunnels (t_id, name, src_element, src_port, dest_element, dest_port, middle_elements, middle_in_ports, middle_out_ports) values(?,?,?,?,?,?,?,?,?)")
 
-  let begin = false
-  const segments = []
-
-  let line
-  while (line = liner.next()) {
-    if (!begin) {
-      if (line.indexOf(header) >= 0) {
-        begin = true
-      }
-    } else {
-      if (tunnelPatten.test(line)) {
-        if (segments) {
-          const row = segments.join("\n")
-          segments.length = 0
-          parse(row, (err, output) => {
-            const value = output[0]
-            if (value) {
-              stmt.run(value[4], value[3], value[8],
-                value[9], value[14], value[15], value[23], value[24], value[26])
-            }
-          })
+  lineReader.eachLine(file, { separator: "\r\n", encoding: "utf8" }, async (line, last) => {
+    if (tunnelPatten.test(line)) {
+      parse(line, (err, output) => {
+        const value = output[0]
+        if (value) {
+          stmt.run([value[4], value[3], value[8],
+            value[9], value[14], value[15], value[23], value[24], value[26]])
         }
-      }
-      segments.push(line)
+      })
     }
-  }
-  if (segments) {
-    const row = segments.join("\n")
-    parse(row, (err, output) => {
-      const value = output[0]
-      if (value) {
-        stmt.run(value[4], value[3], value[8],
-          value[9], value[14], value[15], value[23], value[24], value[26])
+    if (last) {
+      setTimeout(() => {
         stmt.finalize(callback)
-      }
-    })
-  } else {
-    stmt.finalize(callback)
-  }
+      }, 5000)
+    }
+  })
 }
 
 function extractTunnelsPromise(db, file) {
@@ -168,83 +142,47 @@ function extractTunnelsPromise(db, file) {
 }
 
 function extractBusinesses(db, file, callback) {
-  const rs = fs.createReadStream(file, { encoding: "UTF8" })
-  const lineReader = readline.createInterface({ input: rs })
   const workTunnelPatten = /^[是|否],[0|1],.*?,.*?,\d*?,.*?,.*?,.+?,.*?,工作,/i
   const guardTunnelPatten = /^,{9}保护,/i
   const header = "导入网管*,是否反向业务*,OID,业务名称*,业务ID,客户名称,承载业务类型,模板名称*,保护类型*,,源站点,网元*,端口*,端口描述,子接口ID,VLAN ID,Uni Qos Policy,业务分界标签,源优先级类型,源优先级域,网元*,端口*,端口描述,子接口ID,VLAN ID,Uni Qos Policy,业务分界标签,宿优先级类型,宿优先级域,左网元*,右网元*,PW ID*,PW标签,Tunnel类型*,Tunnel 名称,PW Qos Policy,PW模板,管理PW,保护模板名称,左网元,右网元,PW ID,PW标签,Tunnel类型,Tunnel 名称,PW Qos Policy,PW模板,管理PW,保护类型,源保护组ID,宿保护组ID,备注,描述,客户业务类型,区域,定制属性1,定制属性2,Y.1731 TP OAM模板,Y.1711 OAM模板,BFD,导入结果"
 
   const stmt = db.prepare("insert into businesses (b_id, name, src_port, work_dest_port, guard_dest_port, work_tunnel, guard_tunnel) values(?,?,?,?,?,?,?)")
-  let begin = false
-  const segments = []
   let record = null
-  lineReader.on("line", (line) => {
-    if (!begin) {
-      if (line.indexOf(header) >= 0) {
-        begin = true
-      }
-    } else if (workTunnelPatten.test(line)) {
-      if (segments) {
-        // segments store guard_tunnel
-        const row = segments.join("\n")
-        parse(row, (err, output) => {
-          const value = output[0]
-          if (value) {
-            assert.equal(record === null, false)
-            record.guard_dest_port = value[21]
-            record.guard_tunnel = value[34].split(/[\n|/]/)[0]
-            stmt.run(record.b_id, record.name, record.src_port,
-              record.work_dest_port, record.guard_dest_port,
-              record.work_tunnel, record.guard_tunnel)
-          }
-        })
-        segments.length = 0
-        segments.push(line)
-      } else {
-        // first record
-        segments.push(line)
-      }
+
+  lineReader.eachLine(file, { separator: "\r\n", encoding: "utf8" }, async (line, last) => {
+    if (workTunnelPatten.test(line)) {
+      const [value] = parseSync(line)
+      assert.equal(value === undefined, false)
+      console.log(record)
+      assert.equal(record, null)
+      record = {}
+      record.b_id = value[4]
+      record.name = value[3]
+      record.src_port = value[12]
+      record.work_dest_port = value[21]
+      record.work_tunnel = value[34].split(/[\n|/]/)[0]
     } else if (guardTunnelPatten.test(line)) {
-      // segments store work_tunnel
-      assert.equal(segments.length === 0, false)
-      const row = segments.join("\n")
-      parse(row, (err, output) => {
-        const value = output[0]
-        if (value) {
-          // console.log(record)
-          // assert.equal(record, null)
-          record = {}
-          record.b_id = value[4]
-          record.name = value[3]
-          record.src_port = value[12]
-          record.work_dest_port = value[21]
-          record.work_tunnel = value[34].split(/[\n|/]/)[0]
-        }
-      })
-      segments.length = 0
-      segments.push(line)
-    } else {
-      segments.push(line)
+      const [value] = parseSync(line)
+      assert.equal(value === undefined, false)
+      assert.equal(record === null, false)
+
+      record.guard_dest_port = value[21]
+      record.guard_tunnel = value[34].split(/[\n|/]/)[0]
+      await stmtRun(db, stmt, [record.b_id, record.name, record.src_port,
+        record.work_dest_port, record.guard_dest_port,
+        record.work_tunnel, record.guard_tunnel])
+      record = null
+      // db.serialize(() => {
+        // stmt.run([record.b_id, record.name, record.src_port,
+          // record.work_dest_port, record.guard_dest_port,
+          // record.work_tunnel, record.guard_tunnel])
+        // record = null
+      // })
     }
-  })
-  lineReader.on("close", () => {
-    if (segments) {
-      const row = segments.join("\n")
-      assert.equal(guardTunnelPatten.test(row), true)
-      parse(row, (err, output) => {
-        const value = output[0]
-        if (value) {
-          assert.equal(record === null, false)
-          record.guard_dest_port = value[21]
-          record.guard_tunnel = value[34].split(/[\n|/]/)[0]
-          stmt.run(record.b_id, record.name, record.src_port,
-            record.work_dest_port, record.guard_dest_port,
-            record.work_tunnel, record.guard_tunnel)
-          stmt.finalize(callback)
-        }
-      })
-    } else {
-      stmt.finalize(callback)
+    if (last) {
+      setTimeout(() => {
+        stmt.finalize(callback)
+      }, 5000)
     }
   })
 }

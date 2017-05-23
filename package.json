@@ -18,6 +18,7 @@
     "electron": "^1.7.0",
     "exceljs": "^0.4.9",
     "glob-promise": "^3.1.0",
+    "line-reader": "^0.4.0",
     "semantic-ui": "^2.2.10",
     "sqlite": "^2.7.0",
     "sqlite3": "^3.1.8",
