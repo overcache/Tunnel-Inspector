@@ -9,6 +9,7 @@ const tunnelsPath = path.join(__dirname, "CMCC/LTE业务Tunnel信息表.csv")
 const nonLTETunnelsPath = "/Users/simon/Downloads/CMCC/非LTE业务Tunnel信息表.csv"
 const ltePath = path.join(__dirname, "CMCC/LTE业务信息表.csv")
 const nonLTEPath = ["/Users/simon/Downloads/CMCC/非LTE业务CES.csv", "/Users/simon/Downloads/CMCC/非LTE业务ETH.csv"]
+const nonLTEGuardGroupPath = "/Users/simon/Downloads/CMCC/非LTE业务Tunnel保护组.csv"
 
 
 describe("Test module csv", function () {
@@ -19,12 +20,14 @@ describe("Test module csv", function () {
     // await csv.createTunnelsTable(db, "lte")
     // await csv.createBusinessesTable(db)
     // await csv.createTunnelsTable(db, "non_lte")
-    await csv.createNonLTEBusinessesTable(db)
+    // await csv.createNonLTEBusinessesTable(db)
+    await csv.createNonLTETunnelsGuardGroupTable(db)
     // await csv.extractTunnelsPromise(db, LTETunnelsPath, "lte")
     // await csv.extractTunnelsPromise(db, nonLTETunnelsPath, "non_lte")
     // await csv.extractBusinessesPromise(db, LTEPath)
-    await csv.extractNonLTEBusinessesPromise(db, nonLTEPath[0], "ces")
-    await csv.extractNonLTEBusinessesPromise(db, nonLTEPath[1], "eth")
+    // await csv.extractNonLTEBusinessesPromise(db, nonLTEPath[0], "ces")
+    // await csv.extractNonLTEBusinessesPromise(db, nonLTEPath[1], "eth")
+    await csv.extractNonLTETunnelsGuardGroupPromise(db, nonLTEGuardGroupPath)
     await csv.close(db)
   })
 
@@ -46,12 +49,18 @@ describe("Test module csv", function () {
     expect(count).to.be.equal(9586)
   })
 
-  it("total non-businesses records", async function () {
+  it("total non-lte-businesses records", async function () {
     const db = new sqlite3.Database(dbpath)
     const { count } = await csv.get(db, "select count(*) as count from non_lte_businesses")
     // ETH: (1814-8)/2
     // CES: (17880-8)/2
     expect(count).to.be.equal(9839)
+  })
+
+  it("total non-lte-guard-group records", async function () {
+    const db = new sqlite3.Database(dbpath)
+    const { count } = await csv.get(db, "select count(*) as count from non_lte_tunnels_guard_group")
+    expect(count).to.be.equal(4006)
   })
 
   it("extractTunnels", async function () {

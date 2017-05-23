@@ -134,6 +134,21 @@ function createTunnelsTable(db, type = "lte") {
   })
 }
 
+function createNonLTETunnelsGuardGroupTable(db) {
+  const tableName = "non_lte_tunnels_guard_group"
+  return new Promise((resolve) => {
+    db.serialize(() => {
+      const stmt = String.raw`CREATE TABLE IF NOT EXISTS "${tableName}" (
+            "id" integer primary key autoincrement,
+            "name" text not null,
+            "work_tunnel" text not null,
+            "guard_tunnel" text not null
+          );`
+      db.run(`drop table if exists ${tableName}`)
+      db.run(stmt, resolve)
+    })
+  })
+}
 function createNonLTEBusinessesTable(db) {
   const tableName = "non_lte_businesses"
   return new Promise((resolve) => {
@@ -252,6 +267,46 @@ async function extractBusinesses(db, file, callback) {
   })
 }
 
+async function extractNonLTETunnelsGuardGroup(db, file, callback) {
+  const tunnelPatten = /^[是|否],\d*,.*?,/i
+  // const guardTunnelPatten = /^,{9}保护,/i
+  // const header = "导入网管*,是否反向业务*,OID,业务名称*,业务ID,客户名称,承载业务类型,模板名称*,保护类型*,,源站点,网元*,端口*,端口描述,子接口ID,VLAN ID,Uni Qos Policy,业务分界标签,源优先级类型,源优先级域,网元*,端口*,端口描述,子接口ID,VLAN ID,Uni Qos Policy,业务分界标签,宿优先级类型,宿优先级域,左网元*,右网元*,PW ID*,PW标签,Tunnel类型*,Tunnel 名称,PW Qos Policy,PW模板,管理PW,保护模板名称,左网元,右网元,PW ID,PW标签,Tunnel类型,Tunnel 名称,PW Qos Policy,PW模板,管理PW,保护类型,源保护组ID,宿保护组ID,备注,描述,客户业务类型,区域,定制属性1,定制属性2,Y.1731 TP OAM模板,Y.1711 OAM模板,BFD,导入结果"
+
+  const stmt = db.prepare("insert into non_lte_tunnels_guard_group (name, work_tunnel, guard_tunnel) values(?,?,?)")
+  const encoding = await detectEncoding(file)
+  if (encoding === null) {
+    throw new Error("can not detect file's encoding")
+  }
+
+  lineReader.eachLine(file, { separator: "\r\n", encoding: "binary" }, async (raw, last) => {
+    const line = iconv.decode(Buffer.from(raw, "binary"), encoding)
+    if (tunnelPatten.test(line)) {
+      parse(line, (err, output) => {
+        const value = output[0]
+        if (value) {
+          const name = value[2]
+          const role = value[7].split("\n")
+          const tunnels = value[8].split("\n")
+          let workTunnel
+          let guardTunnel
+          if (role.length === 2) {
+            workTunnel = tunnels[role.indexOf("工作")]
+            guardTunnel = tunnels[role.indexOf("保护")]
+          } else {
+            workTunnel = tunnels[role.indexOf("正向工作")]
+            guardTunnel = tunnels[role.indexOf("正向保护")]
+          }
+          stmtRun(db, stmt, [name, workTunnel, guardTunnel])
+        }
+      })
+    }
+    if (last) {
+      setTimeout(() => {
+        stmt.finalize(callback)
+      }, 5000)
+    }
+  })
+}
 async function extractNonLTEBusinesses(db, file, type, callback) {
   const workTunnelPatten = /^[是|否],[0|1],.*?,.*?,\d*?,.*?,.*?,.+?,.*?,工作,/i
   // const guardTunnelPatten = /^,{9}保护,/i
@@ -293,6 +348,11 @@ function extractBusinessesPromise(db, file) {
 function extractNonLTEBusinessesPromise(db, file, type) {
   return new Promise((resolve, reject) => {
     extractNonLTEBusinesses(db, file, type, resolve)
+  })
+}
+function extractNonLTETunnelsGuardGroupPromise(db, file) {
+  return new Promise((resolve, reject) => {
+    extractNonLTETunnelsGuardGroup(db, file, resolve)
   })
 }
 
@@ -464,10 +524,13 @@ module.exports = {
   extractTunnelsPromise,
   createBusinessesTable,
   createNonLTEBusinessesTable,
+  createNonLTETunnelsGuardGroupTable,
   extractBusinesses,
   extractNonLTEBusinesses,
   extractBusinessesPromise,
   extractNonLTEBusinessesPromise,
+  extractNonLTETunnelsGuardGroup,
+  extractNonLTETunnelsGuardGroupPromise,
   get,
   mergeToOutput,
   inspect,
