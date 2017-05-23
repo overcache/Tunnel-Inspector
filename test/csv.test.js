@@ -5,9 +5,9 @@ const path = require("path")
 const sqlite3 = require("sqlite3").verbose()
 const csv = require(path.join(__dirname, "../csv.js"))
 const dbpath =path.join(__dirname, "aa.db")
-const tunnelsPath = path.join(__dirname, "CMCC/LTE业务Tunnel信息表.csv")
+const LTETunnelsPath = "/Users/simon/Downloads/CMCC/LTE业务Tunnel信息表.csv"
 const nonLTETunnelsPath = "/Users/simon/Downloads/CMCC/非LTE业务Tunnel信息表.csv"
-const ltePath = path.join(__dirname, "CMCC/LTE业务信息表.csv")
+const LTEPath = "/Users/simon/Downloads/CMCC/LTE业务信息表.csv"
 const nonLTEPath = ["/Users/simon/Downloads/CMCC/非LTE业务CES.csv", "/Users/simon/Downloads/CMCC/非LTE业务ETH.csv"]
 const nonLTEGuardGroupPath = "/Users/simon/Downloads/CMCC/非LTE业务Tunnel保护组.csv"
 
@@ -17,21 +17,28 @@ describe("Test module csv", function () {
   this.timeout(300000)
   before(async function () {
     const db = new sqlite3.Database(dbpath)
-    // await csv.createTunnelsTable(db, "lte")
-    // await csv.createBusinessesTable(db)
-    // await csv.createTunnelsTable(db, "non_lte")
-    // await csv.createNonLTEBusinessesTable(db)
+    await csv.createTunnelsTable(db, "lte")
+    await csv.createBusinessesTable(db)
+    await csv.createTunnelsTable(db, "non_lte")
+    await csv.createNonLTEBusinessesTable(db)
     await csv.createNonLTETunnelsGuardGroupTable(db)
-    // await csv.extractTunnelsPromise(db, LTETunnelsPath, "lte")
-    // await csv.extractTunnelsPromise(db, nonLTETunnelsPath, "non_lte")
-    // await csv.extractBusinessesPromise(db, LTEPath)
-    // await csv.extractNonLTEBusinessesPromise(db, nonLTEPath[0], "ces")
-    // await csv.extractNonLTEBusinessesPromise(db, nonLTEPath[1], "eth")
+    console.log("create tables finished")
+    await csv.extractTunnelsPromise(db, LTETunnelsPath, "lte")
+    console.log("extract lte tunnels finished")
+    await csv.extractTunnelsPromise(db, nonLTETunnelsPath, "non_lte")
+    console.log("extract non-lte tunnels finished")
+    await csv.extractBusinessesPromise(db, LTEPath)
+    console.log("extract lte business finished")
+    await csv.extractNonLTEBusinessesPromise(db, nonLTEPath[0], "ces")
+    console.log("extract non-lte ces finished")
+    await csv.extractNonLTEBusinessesPromise(db, nonLTEPath[1], "eth")
+    console.log("extract non-lte eth finished")
     await csv.extractNonLTETunnelsGuardGroupPromise(db, nonLTEGuardGroupPath)
+    console.log("extract non-lte tunntles guard group finished")
     await csv.close(db)
   })
 
-  it("total tunnels records", async function () {
+  it("total lte tunnels records", async function () {
     const db = new sqlite3.Database(dbpath)
     const { count } = await csv.get(db, "select count(*) as count from lte_tunnels")
     expect(count).to.be.equal(17225)
