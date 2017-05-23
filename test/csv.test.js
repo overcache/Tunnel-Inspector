@@ -6,6 +6,7 @@ const sqlite3 = require("sqlite3").verbose()
 const csv = require(path.join(__dirname, "../csv.js"))
 const dbpath =path.join(__dirname, "aa.db")
 const tunnelsPath = path.join(__dirname, "CMCC/LTE业务Tunnel信息表.csv")
+const nonLteTunnelsPath = "/Users/simon/Downloads/CMCC/非LTE业务Tunnel信息表.csv"
 const ltePath = path.join(__dirname, "CMCC/LTE业务信息表.csv")
 
 
@@ -14,15 +15,12 @@ describe("Test module csv", function () {
   this.timeout(300000)
   before(async function () {
     const db = new sqlite3.Database(dbpath)
-    await csv.createTunnelsTable(db, "lte")
-    await csv.createBusinessesTable(db, "lte")
-    await csv.extractTunnelsPromise(db, tunnelsPath, "lte")
-    try {
-      await csv.extractBusinessesPromise(db, ltePath)
-    } catch (err) {
-      console.log(err)
-      throw err
-    }
+    // await csv.createTunnelsTable(db, "lte")
+    // await csv.createBusinessesTable(db, "lte")
+    // await csv.createTunnelsTable(db, "non_lte")
+    // await csv.extractTunnelsPromise(db, tunnelsPath, "lte")
+    // await csv.extractTunnelsPromise(db, nonLteTunnelsPath, "non_lte")
+    // await csv.extractBusinessesPromise(db, ltePath)
     await csv.close(db)
   })
 
@@ -30,6 +28,12 @@ describe("Test module csv", function () {
     const db = new sqlite3.Database(dbpath)
     const { count } = await csv.get(db, "select count(*) as count from lte_tunnels")
     expect(count).to.be.equal(17225)
+  })
+
+  it("total non-lte-tunnels records", async function () {
+    const db = new sqlite3.Database(dbpath)
+    const { count } = await csv.get(db, "select count(*) as count from non_lte_tunnels")
+    expect(count).to.be.equal(12361)
   })
 
   it("total businesses records", async function () {
