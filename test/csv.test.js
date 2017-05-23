@@ -21,6 +21,18 @@ describe("Test module csv", function () {
     await csv.close(db)
   })
 
+  it("total tunnels records", async function () {
+    const db = new sqlite3.Database(dbpath)
+    const { count } = await csv.get(db, "select count(*) as count from tunnels")
+    expect(count).to.be.equal(17225)
+  })
+
+  it("total businesses records", async function () {
+    const db = new sqlite3.Database(dbpath)
+    const { count } = await csv.get(db, "select count(*) as count from businesses")
+    expect(count).to.be.equal(9586)
+  })
+
   it("extractTunnels", async function () {
     const db = new sqlite3.Database(dbpath)
     const row = await csv.get(db, "select * from tunnels where t_id = '32213'")
