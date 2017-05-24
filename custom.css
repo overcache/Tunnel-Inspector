@@ -8,3 +8,14 @@ body {
   margin-left: 1em;
   /* margin-right: 0.5em; */
 }
+
+.ui.modal {
+  width: 100px;
+  padding: 30px;
+}
+.about.modal a {
+  display: inline;
+}
+.files button {
+  width: 204px;
+}

@@ -1,7 +1,8 @@
-const fs = require("fs")
+/* global $ */
+const fs = require("fs-extra")
 const path = require("path")
 const glob = require("glob-promise")
-const { dialog } = require("electron").remote
+const { dialog, app } = require("electron").remote
 const csv = require("./csv.js")
 const sqlite3 = require("sqlite3").verbose()
 
@@ -181,18 +182,138 @@ async function inspect(file) {
   console.log("extract finish")
 }
 
+function query() {
+  // Todo
+}
+
+function showModalInfo(message) {
+  document.getElementById("modal-info").innerHTML = message
+  $(".info.modal")
+    .modal({
+      dimmerSettings: {
+        opacity: 0.2,
+      },
+    })
+    .modal("show")
+}
+function showOpenDialog(type, filters) {
+  // type: openDiretory, openFile
+  const selecteds = dialog.showOpenDialog({
+    properties: type,
+    filters,
+  })
+  if (selecteds) {
+    return selecteds[0]
+  }
+  return null
+}
+
+function importFromDb() {
+  const file = showOpenDialog(["openFile"])
+  if (file) {
+    fs.stat(file, (err, stats) => {
+      if (err) {
+        showModalInfo(err)
+      } else if (stats.isFile()) {
+        const dbfile = path.join(app.getPath("appData"), "tunnelinspector/CMCC.db")
+        // todo : check dbfile
+        fs.copy(file, dbfile, (err) => {
+          showModalInfo(err || "数据库导入完成")
+        })
+      }
+    })
+  }
+}
+function importFromFile() {
+  $(".select-files.modal")
+      .modal({
+        dimmerSettings: {
+          opacity: 0.2,
+        },
+      })
+      .modal("show")
+}
+function selectFile(event) {
+  const inputField = event.target.previousElementSibling
+  const file = showOpenDialog(
+    ["openFile"],
+    [{ name: "CSV", extensions: ["csv"] }])
+  inputField.value = file
+}
+function collectTextField() {
+  const result = new Map()
+  const fields = document.querySelectorAll(".files input")
+  Array.from(fields).forEach((field) => {
+    result.set(field.id, field.value)
+  })
+  return result
+}
 document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("btn-path").addEventListener("click", () => {
-    const selecteds = dialog.showOpenDialog({ properties: ["openDirectory"] })
-    if (selecteds) {
-      document.getElementById("text-path").value = selecteds[0]
-      checkPath(selecteds[0])
+  // init dropdown
+  $(".dropdown").dropdown()
+
+  document.getElementById("about").addEventListener("click", () => {
+    $(".about.modal")
+  })
+
+  document.getElementById("import").addEventListener("click", () => {
+    $(".import.modal")
+      .modal({
+        dimmerSettings: {
+          opacity: 0.2,
+        },
+      })
+      .modal("show")
+  })
+
+  document.getElementById("import-next-button").addEventListener("click", () => {
+    $(".import.modal").modal("hide")
+    const dataSource = document.querySelector(".data-source:checked").value
+    if (dataSource === "import-from-db") {
+      importFromDb()
+    } else if (dataSource === "import-from-file") {
+      importFromFile()
     }
   })
-  document.getElementById("text-path").addEventListener("keyup", (event) => {
-    checkPath(event.target.value)
+
+  const filesButtons = document.querySelectorAll(".files button")
+  Array.from(filesButtons).forEach((button) => {
+    button.addEventListener("click", event => selectFile(event))
   })
-  document.getElementById("btn-inspect").addEventListener("click", (event) => {
-    inspect()
+
+  document.getElementById("import-from-file-next").addEventListener("click", () => {
+    const files = collectTextField()
+    if (files.size < 6) {
+      showModalInfo("请选择对应文件")
+    } else {
+
+    }
+  })
+
+  document.getElementById("export").addEventListener("click", () => {
+    // show export info
+    console.log("export")
+  })
+
+  document.getElementById("backup").addEventListener("click", () => {
+    const dbfile = path.join(app.getPath("appData"), "tunnelinspector/CMCC.db")
+    fs.stat(dbfile, (err, stats) => {
+      if (err) {
+        showModalInfo("数据库还未建立, 无需备份")
+      } else if (stats.isFile()) {
+        const backupPath = showOpenDialog(["openDiretory"])
+        if (backupPath) {
+          fs.copy(dbfile, path.join(backupPath, `CMCCbackup-${new Date().toISOString().slice(0, 10)}.db`), (err) => {
+            showModalInfo(err || "备份完成")
+          })
+        }
+      }
+    })
+  })
+
+  document.getElementById("query").addEventListener("click", (event) => {
+    // add loading
+    query()
+    // remove loading
   })
 })
