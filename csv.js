@@ -5,6 +5,7 @@ const parseSync = require("csv-parse/lib/sync")
 const assert = require("assert")
 const jschardet = require("jschardet")
 const iconv = require("iconv-lite")
+const stringify = require("csv-stringify")
 
 
 function detectEncoding(file) {
@@ -27,6 +28,7 @@ function detectEncoding(file) {
     })
   })
 }
+
 function test() {
   return new Promise((resolve) => {
     setTimeout(() => {
@@ -165,7 +167,10 @@ function createNonLTEBusinessesTable(db) {
             "id" integer primary key autoincrement,
             "b_id" text,
             "name" text not null,
+            "src_element" text not null,
             "src_port" text not null,
+            "dest_element" text not null,
+            "dest_port" text not null,
             "tunnel_name" text not null
           );`
       db.run(`drop table if exists ${tableName}`)
@@ -186,8 +191,11 @@ function createBusinessesTable(db, type = "lte") {
             "id" integer primary key autoincrement,
             "b_id" text,
             "name" text not null,
+            "src_element" text not null,
             "src_port" text not null,
+            "work_dest_element" text not null,
             "work_dest_port" text not null,
+            "guard_dest_element" text not null,
             "guard_dest_port" text not null,
             "work_tunnel" text not null,
             "guard_tunnel" text not null
@@ -236,7 +244,7 @@ async function extractBusinesses(db, file, callback) {
   const guardTunnelPatten = /^,{9}保护,/i
   const header = "导入网管*,是否反向业务*,OID,业务名称*,业务ID,客户名称,承载业务类型,模板名称*,保护类型*,,源站点,网元*,端口*,端口描述,子接口ID,VLAN ID,Uni Qos Policy,业务分界标签,源优先级类型,源优先级域,网元*,端口*,端口描述,子接口ID,VLAN ID,Uni Qos Policy,业务分界标签,宿优先级类型,宿优先级域,左网元*,右网元*,PW ID*,PW标签,Tunnel类型*,Tunnel 名称,PW Qos Policy,PW模板,管理PW,保护模板名称,左网元,右网元,PW ID,PW标签,Tunnel类型,Tunnel 名称,PW Qos Policy,PW模板,管理PW,保护类型,源保护组ID,宿保护组ID,备注,描述,客户业务类型,区域,定制属性1,定制属性2,Y.1731 TP OAM模板,Y.1711 OAM模板,BFD,导入结果"
 
-  const stmt = db.prepare("insert into lte_businesses (b_id, name, src_port, work_dest_port, guard_dest_port, work_tunnel, guard_tunnel) values(?,?,?,?,?,?,?)")
+  const stmt = db.prepare("insert into lte_businesses (b_id, name, src_element, src_port, work_dest_element, work_dest_port, guard_dest_element, guard_dest_port, work_tunnel, guard_tunnel) values(?,?,?,?,?,?,?,?,?,?)")
   const encoding = await detectEncoding(file)
   if (encoding === null) {
     throw new Error("can not detect file's encoding")
@@ -252,7 +260,9 @@ async function extractBusinesses(db, file, callback) {
       record = {}
       record.b_id = value[4]
       record.name = value[3]
+      record.src_element = value[11]
       record.src_port = value[12]
+      record.work_dest_element = value[20]
       record.work_dest_port = value[21]
       record.work_tunnel = split(value[34])
     } else if (guardTunnelPatten.test(line)) {
@@ -260,11 +270,15 @@ async function extractBusinesses(db, file, callback) {
       assert.equal(value === undefined, false)
       assert.equal(record === null, false)
 
+      record.guard_dest_element = value[20] // todo
       record.guard_dest_port = value[21]
       record.guard_tunnel = split(value[34])
-      await stmtRun(db, stmt, [record.b_id, record.name, record.src_port,
-        record.work_dest_port, record.guard_dest_port,
-        record.work_tunnel, record.guard_tunnel])
+      await stmtRun(db, stmt, [
+        record.b_id, record.name, record.src_element, record.src_port,
+        record.work_dest_element, record.work_dest_port,
+        record.guard_dest_element, record.guard_dest_port,
+        record.work_tunnel, record.guard_tunnel,
+      ])
       record = null
     }
     if (last) {
@@ -341,7 +355,7 @@ async function extractNonLTEBusinesses(db, file, type, callback) {
   // const guardTunnelPatten = /^,{9}保护,/i
   // const header = "导入网管*,是否反向业务*,OID,业务名称*,业务ID,客户名称,承载业务类型,模板名称*,保护类型*,,源站点,网元*,端口*,端口描述,子接口ID,VLAN ID,Uni Qos Policy,业务分界标签,源优先级类型,源优先级域,网元*,端口*,端口描述,子接口ID,VLAN ID,Uni Qos Policy,业务分界标签,宿优先级类型,宿优先级域,左网元*,右网元*,PW ID*,PW标签,Tunnel类型*,Tunnel 名称,PW Qos Policy,PW模板,管理PW,保护模板名称,左网元,右网元,PW ID,PW标签,Tunnel类型,Tunnel 名称,PW Qos Policy,PW模板,管理PW,保护类型,源保护组ID,宿保护组ID,备注,描述,客户业务类型,区域,定制属性1,定制属性2,Y.1731 TP OAM模板,Y.1711 OAM模板,BFD,导入结果"
 
-  const stmt = db.prepare("insert into non_lte_businesses (b_id, name, src_port, tunnel_name) values(?,?,?,?)")
+  const stmt = db.prepare("insert into non_lte_businesses (b_id, name, src_element, src_port, dest_element, dest_port, tunnel_name) values(?,?,?,?,?,?,?)")
   const encoding = await detectEncoding(file)
   if (encoding === null) {
     throw new Error("can not detect file's encoding")
@@ -354,9 +368,9 @@ async function extractNonLTEBusinesses(db, file, type, callback) {
         const value = output[0]
         if (value) {
           if (type === "eth") {
-            stmtRun(db, stmt, [value[4], value[3], value[12], split(value[34])])
+            stmtRun(db, stmt, [value[4], value[3], value[11], value[12], value[20], value[21], split(value[34])])
           } else {
-            stmtRun(db, stmt, [value[4], value[3], value[12], split(value[32])])
+            stmtRun(db, stmt, [value[4], value[3], value[11], value[12], value[19], value[20], split(value[32])])
           }
         }
       })
@@ -397,6 +411,7 @@ function fillRow(record, type) {
   let TSrcPort
   let TDestElement
   let TDestPort
+  let BDestElement
   let BDestPort
   let TMiddleElements
   let TMiddleInPorts
@@ -408,7 +423,8 @@ function fillRow(record, type) {
     TSrcPort = record.work_src_port
     TDestElement = record.work_dest_element
     TDestPort = record.work_dest_port
-    BDestPort = record.b_work_desk_port
+    BDestElement = record.b_work_dest_element
+    BDestPort = record.b_work_dest_port
     TMiddleElements = record.work_middle_elements.split("\n")
     TMiddleInPorts = record.work_middle_in_ports.split("\n")
     TMiddleOutPorts = record.work_middle_out_ports.split("\n")
@@ -418,7 +434,8 @@ function fillRow(record, type) {
     TSrcPort = record.guard_src_port
     TDestElement = record.guard_dest_element
     TDestPort = record.guard_dest_port
-    BDestPort = record.b_guard_desk_port
+    BDestElement = record.b_guard_dest_element
+    BDestPort = record.b_guard_dest_port
     TMiddleElements = record.guard_middle_elements.split("\n")
     TMiddleInPorts = record.guard_middle_in_ports.split("\n")
     TMiddleOutPorts = record.guard_middle_out_ports.split("\n")
@@ -427,7 +444,7 @@ function fillRow(record, type) {
   result.push(record.b_name)
   result.push(type)
   result.push(`${record.b_src_element}#${record.b_src_port}`)
-  result.push(`${TDestElement}#${BDestPort}`)
+  result.push(`${BDestElement}#${BDestPort}`)
   result.push(`${TName}`)
   const segments = []
   const routes = []
@@ -547,6 +564,113 @@ async function inspect(db, id) {
   print(id, result)
 }
 
+function exportsLTE(db, ws) {
+  const sql = String.raw`
+      select
+      b.name as b_name,
+      b.src_element as b_src_element,
+      b.src_port as b_src_port,
+      b.work_dest_element as b_work_dest_element,
+      b.work_dest_port as b_work_dest_port,
+      b.guard_dest_element as b_guard_dest_element,
+      b.guard_dest_port as b_guard_dest_port,
+      w.name as work_name,
+      w.src_element as work_src_element,
+      w.src_port as work_src_port,
+      w.dest_element as work_dest_element,
+      w.dest_port as work_dest_port,
+      w.middle_elements as work_middle_elements,
+      w.middle_in_ports as work_middle_in_ports,
+      w.middle_out_ports as work_middle_out_ports,
+      g.name as guard_name,
+      g.src_element as guard_src_element,
+      g.src_port as guard_src_port,
+      g.dest_element as guard_dest_element,
+      g.dest_port as guard_dest_port,
+      g.middle_elements as guard_middle_elements,
+      g.middle_in_ports as guard_middle_in_ports,
+      g.middle_out_ports as guard_middle_out_ports
+      from lte_businesses as b
+      inner join lte_tunnels as w
+        on b.work_tunnel = w.name
+      inner join lte_tunnels as g
+        on b.guard_tunnel = g.name
+      `
+  const newline = ",,,,,,\r\n"
+  const header = [["业务名称", "保护形式", "源网元信息", "宿网元信息", "承载Tunnel名称", "承载Tunnel路由", "同路由部分"]]
+  stringify(header, (err, output) => {
+    ws.write(output)
+  })
+  db.each(sql, (err, row) => {
+    const result = mergeRow(row)
+    stringify(result, (err, output) => {
+      ws.write(output)
+      ws.write(newline)
+    })
+  }, (err, total) => {
+    ws.end()
+  })
+}
+
+function exportnonLTE(db, ws) {
+  const sql = String.raw`
+    select
+    temp.name as b_name,
+    temp.src_element as b_src_element,
+    temp.src_port as b_src_port,
+    temp.work_dest_element as b_work_dest_element,
+    temp.work_dest_port as b_work_dest_port,
+    guard.dest_element as b_guard_dest_element,
+    guard.dest_port as b_guard_dest_port,
+    work.name as work_name,
+    work.src_element as work_src_element,
+    work.src_port as work_src_port,
+    work.dest_element as work_dest_element,
+    work.dest_port as work_dest_port,
+    work.middle_elements as work_middle_elements,
+    work.middle_in_ports as work_in_ports,
+    work.middle_out_ports as work_out_ports,
+    guard.name as guard_name,
+    guard.src_element as guard_src_element,
+    guard.src_port as guard_src_port,
+    guard.dest_element as guard_dest_element,
+    guard.dest_port as guard_dest_port,
+    guard.middle_elements as guard_middle_elements,
+    guard.middle_in_ports as guard_in_ports,
+    guard.middle_out_ports as guard_out_ports
+    from
+    (select
+    b.name as name,
+    b.src_element as src_element,
+    b.src_port as src_port,
+    b.dest_element as work_dest_element,
+    b.dest_port as work_dest_port,
+    t.work_tunnel as work_tunnel,
+    t.guard_tunnel as guard_tunnel
+    from non_lte_businesses as b
+    left join non_lte_tunnels_guard_group as t
+      on b.tunnel_name = t.work_tunnel ) as temp
+    inner join non_lte_tunnels as work
+      on temp.work_tunnel = work.name
+    inner join non_lte_tunnels as guard
+      on temp.guard_tunnel = guard.name`
+
+  const newline = ",,,,,,\r\n"
+  const header = [["业务名称", "保护形式", "源网元信息", "宿网元信息", "承载Tunnel名称", "承载Tunnel路由", "同路由部分"]]
+  stringify(header, (err, output) => {
+    ws.write(output)
+  })
+  db.each(sql, (err, row) => {
+    const result = mergeRow(row)
+    stringify(result, (err, output) => {
+      ws.write(output)
+      ws.write(newline)
+    })
+  }, (err, total) => {
+    ws.end()
+  })
+}
+
 module.exports = {
   createTunnelsTable,
   extractTunnels,
@@ -566,4 +690,5 @@ module.exports = {
   test,
   close,
   mergeRow,
+  exportsLTE,
 }

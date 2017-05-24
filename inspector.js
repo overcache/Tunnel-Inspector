@@ -1,13 +1,17 @@
-/* eslint global: "$" */
 const fs = require("fs")
 const path = require("path")
 const glob = require("glob-promise")
 const { dialog } = require("electron").remote
 const csv = require("./csv.js")
+const sqlite3 = require("sqlite3").verbose()
 
-const LTE = new Set()
-const nonLTE = new Set()
-const fiberCable = new Set()
+let LTEB
+let LTET
+let nonLTET
+let CES
+let ETH
+let guardGroup
+const dbpath = "data.db"
 
 function clearClassList(element) {
   if (element.classList) {
@@ -17,26 +21,20 @@ function clearClassList(element) {
   }
 }
 
-function createList({ LTE, nonLTE, fiberCable }) {
+function createList() {
   const html = `
-    <div class="header">${LTE.size !== 2 && nonLTE.size !==2 ? "文件夹需要至少包含一种业务的两张表." : "包含文件:"}</div>
+    <div class="header">${(LTEB && LTET) || (CES && ETH && guardGroup && nonLTET) ? "包含文件: " : "文件夹需要至少包含一种业务的信息: "}</div>
     <div class="ui list">
       <div class="item">
-        <div class="ui teal label">
+        <div class="ui ${(LTEB && LTET) ? "teal" : "red"} label">
         LTE业务
-        <span id="lte-list"><i class="ui ${LTE.size === 2 ? "check" : "remove"} circle icon"></i></span>
+        <span id="lte-list"><i class="ui ${(LTEB && LTET) ? "check" : "remove"} circle icon"></i></span>
         </div>
       </div>
       <div class="item">
-        <div class="ui teal label">
+        <div class="ui ${(CES && ETH && guardGroup && nonLTET) ? "teal" : "red"} label">
         非LTE业务
-        <span id="lte-list"><i class="ui ${nonLTE.size === 2 ? "check" : "remove"} circle icon"></i></span>
-        </div>
-      </div>
-      <div class="item">
-        <div class="ui teal label">
-        光缆链接关系
-        <span id="lte-list"><i class="ui ${fiberCable.size === 1 ? "check" : "remove"} circle icon"></i></span>
+        <span id="lte-list"><i class="ui ${(CES && ETH && guardGroup && nonLTET) ? "check" : "remove"} circle icon"></i></span>
         </div>
       </div>
     </div>
@@ -94,27 +92,46 @@ function toggleBtn(...args) {
 
 async function checkFolder(folder) {
   // LTE业务表1.xls, 光缆链接关系.xls
-  const files = await glob(`${folder}/**/*.xls`)
-  LTE.clear()
-  nonLTE.clear()
-  fiberCable.clear()
+  const files = await glob(`${folder}/**/*.csv`)
+  LTEB = ""
+  LTET = ""
+  nonLTET = ""
+  CES = ""
+  ETH = ""
+  guardGroup = ""
   files.forEach((file) => {
     const basename = path.basename(file)
-    if (basename.match(/^LTE业务表[1-2]\.xls$/i)) {
-      LTE.add(file)
-    } else if (basename.match(/^非LTE业务表[1-2]\.xls$/i)) {
-      nonLTE.add(file)
-    } else if (basename.match(/^光缆链接关系\.xls$/i)) {
-      fiberCable.add(file)
+    console.log(basename)
+    switch (basename) {
+    case "LTE业务信息表.csv":
+      LTEB = file
+      break
+    case "LTE业务Tunnel信息表.csv":
+      LTET = file
+      break
+    case "非LTE业务CES.csv":
+      CES = file
+      break
+    case "非LTE业务ETH.csv":
+      ETH = file
+      break
+    case "非LTE业务Tunnel保护组.csv":
+      guardGroup = file
+      break
+    case "非LTE业务Tunnel信息表.csv":
+      nonLTET = file
+      break
+    default:
+      break
     }
   })
-  if (LTE.size === 2 || nonLTE.size === 2) {
-    showMessage(createList({ LTE, nonLTE, fiberCable }), "positive")
+  if ((LTEB && LTET) || (CES && ETH && guardGroup && nonLTET)) {
+    showMessage(createList(), "positive")
     changeIcon(["check", "circle", "green"])
     toggleBtn("btn-inspect", "enable")
     toggleDivPathError("off")
   } else {
-    showMessage(createList({ LTE, nonLTE, fiberCable }), "error")
+    showMessage(createList(), "error")
     toggleBtn("btn-inspect", "disable")
     changeIcon(["remove", "circle", "red"])
     toggleDivPathError("on")
@@ -140,10 +157,30 @@ function checkPath(str) {
   })
 }
 
-function inspect(file) {
-  csv.extractTunnels("test.db", "tunnels.csv")
+async function inspect(file) {
+  const db = new sqlite3.Database(dbpath)
+  await csv.createTunnelsTable(db, "lte")
+  await csv.createBusinessesTable(db)
+  await csv.createTunnelsTable(db, "non_lte")
+  await csv.createNonLTEBusinessesTable(db)
+  await csv.createNonLTETunnelsGuardGroupTable(db)
+  console.log("create tables finished")
+  await csv.extractTunnelsPromise(db, LTET, "lte")
+  console.log("extract lte tunnels finished")
+  await csv.extractTunnelsPromise(db, nonLTET, "non_lte")
+  console.log("extract non-lte tunnels finished")
+  await csv.extractBusinessesPromise(db, LTEB)
+  console.log("extract lte business finished")
+  await csv.extractNonLTEBusinessesPromise(db, CES, "ces")
+  console.log("extract non-lte ces finished")
+  await csv.extractNonLTEBusinessesPromise(db, ETH, "eth")
+  console.log("extract non-lte eth finished")
+  await csv.extractNonLTETunnelsGuardGroupPromise(db, guardGroup)
+  console.log("extract non-lte tunntles guard group finished")
+  await csv.close(db)
+  console.log("extract finish")
 }
-let workbook = ""
+
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-path").addEventListener("click", () => {
     const selecteds = dialog.showOpenDialog({ properties: ["openDirectory"] })

@@ -3,6 +3,7 @@ const { expect } = require("chai")
 const fs = require("fs")
 const path = require("path")
 const sqlite3 = require("sqlite3").verbose()
+const iconv = require("iconv-lite")
 const csv = require(path.join(__dirname, "../csv.js"))
 const dbpath =path.join(__dirname, "aa.db")
 const LTETunnelsPath = "/Users/simon/Downloads/CMCC/LTE业务Tunnel信息表.csv"
@@ -20,7 +21,7 @@ describe("Test module csv", function () {
     // await csv.createTunnelsTable(db, "lte")
     // await csv.createBusinessesTable(db)
     // await csv.createTunnelsTable(db, "non_lte")
-    await csv.createNonLTEBusinessesTable(db)
+    // await csv.createNonLTEBusinessesTable(db)
     // await csv.createNonLTETunnelsGuardGroupTable(db)
     // console.log("create tables finished")
     // await csv.extractTunnelsPromise(db, LTETunnelsPath, "lte")
@@ -29,10 +30,10 @@ describe("Test module csv", function () {
     // console.log("extract non-lte tunnels finished")
     // await csv.extractBusinessesPromise(db, LTEPath)
     // console.log("extract lte business finished")
-    await csv.extractNonLTEBusinessesPromise(db, nonLTEPath[0], "ces")
-    console.log("extract non-lte ces finished")
-    await csv.extractNonLTEBusinessesPromise(db, nonLTEPath[1], "eth")
-    console.log("extract non-lte eth finished")
+    // await csv.extractNonLTEBusinessesPromise(db, nonLTEPath[0], "ces")
+    // console.log("extract non-lte ces finished")
+    // await csv.extractNonLTEBusinessesPromise(db, nonLTEPath[1], "eth")
+    // console.log("extract non-lte eth finished")
     // await csv.extractNonLTETunnelsGuardGroupPromise(db, nonLTEGuardGroupPath)
     // console.log("extract non-lte tunntles guard group finished")
     await csv.close(db)
@@ -128,10 +129,12 @@ describe("Test module csv", function () {
   it("inspect 南宁西乡塘区锦虹棉纺织公司LTE-网管", function (done) {
     const sql = String.raw`select
       b.name as b_name,
-      w.src_element as b_src_element,
+      b.src_element as b_src_element,
       b.src_port as b_src_port,
-      b.work_dest_port as b_work_desk_port,
-      b.guard_dest_port as b_guard_desk_port,
+      b.work_dest_element as b_work_dest_element,
+      b.work_dest_port as b_work_dest_port,
+      b.guard_dest_element as b_guard_dest_element,
+      b.guard_dest_port as b_guard_dest_port,
       w.name as work_name,
       w.src_element as work_src_element,
       w.src_port as work_src_port,
@@ -193,6 +196,28 @@ describe("Test module csv", function () {
     db.each(sql, (err, row) => {
       expect(csv.mergeRow(row)).to.be.deep.equal(result)
     }, (err, total) => {
+      done()
+    })
+  })
+
+  it("exportsLTE", function (done) {
+    const db = new sqlite3.Database(path.join(__dirname, "aa.db"))
+    const ws = fs.createWriteStream("output.csv")
+    ws.write("\ufeff")
+    csv.exportsLTE(db, ws)
+    ws.on("finish", () => {
+      console.log("done")
+      done()
+    })
+  })
+
+  it("exportsNonLTE", function (done) {
+    const db = new sqlite3.Database(path.join(__dirname, "aa.db"))
+    const ws = fs.createWriteStream("output-non-lte.csv")
+    ws.write("\ufeff")
+    csv.exportsLTE(db, ws)
+    ws.on("finish", () => {
+      console.log("done")
       done()
     })
   })
