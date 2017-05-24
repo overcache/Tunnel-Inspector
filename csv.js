@@ -91,20 +91,28 @@ function all(db, sql) {
 
 function split(str) {
   if (str.indexOf("\n") >= 0) {
-    return str.split("\n")[0]
+    const strs = str.split("\n")
+    // _Reverse
+    const pattern = /_R(everse|VS?)?$/i
+    if (pattern.test(strs[0])) {
+      return strs[1]
+    }
+    return strs[0]
   }
   const index = str.indexOf("/")
   if (index < 0) {
     return str
   }
-  // demo-L2/L3-master/demo-L2/L3-master
+  // demo-L2/L3-master_RVS/demo-L2/L3-master
   // demo-L2/L3-master
   const pre = str.substring(0, index)
   const nextIndex = str.indexOf(pre, index)
   if (nextIndex < 0) {
     return str
   }
-  return str.substring(0, nextIndex - 1)
+  const part1 = str.substring(0, nextIndex - 1)
+  const part2 = str.substring(nextIndex)
+  return part1.length < part2.length ? part1 : part2
 }
 
 function createTunnelsTable(db, type = "lte") {
@@ -293,8 +301,29 @@ async function extractNonLTETunnelsGuardGroup(db, file, callback) {
             workTunnel = tunnels[role.indexOf("工作")]
             guardTunnel = tunnels[role.indexOf("保护")]
           } else {
-            workTunnel = tunnels[role.indexOf("正向工作")]
-            guardTunnel = tunnels[role.indexOf("正向保护")]
+            const pattern = /_RVS.*$|_RV$|_R$|_Reverse$/i
+            const tmp = tunnels.filter(tunnel => !pattern.test(tunnel))
+
+            const guardPattern = /_PRT$|_PR$|_P$|-P$/i
+            tmp.forEach((tunnel) => {
+              if (guardPattern.test(tunnel)) {
+                guardTunnel = tunnel
+              } else {
+                workTunnel = tunnel
+              }
+            })
+            if (workTunnel === undefined) {
+              // console.log(value)
+              const strictGuardPattern = /_PRT$|_PR$|_P$/i
+              tmp.forEach((tunnel) => {
+                if (!strictGuardPattern.test(tunnel)) {
+                  workTunnel = tunnel
+                }
+              })
+            }
+            if (guardTunnel === undefined) {
+              guardTunnel = workTunnel
+            }
           }
           stmtRun(db, stmt, [name, workTunnel, guardTunnel])
         }
