@@ -1,157 +1,277 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Tunnel Inspector</title>
-  <link rel="stylesheet" href="./semantic/dist/semantic.min.css">
-  <link rel="stylesheet" href="./custom.css">
-</head>
-<body>
-  <div class="ui text menu">
-    <a class="ui right dropdown item">
-      <i class="sidebar icon"></i>
-      <div class="menu">
-        <div id="import" class="item">
-          <i class="teal cloud upload icon"></i>
-          导入数据
+  <head>
+    <meta charset="UTF-8">
+    <title>Tunnel Inspector</title>
+    <link rel="stylesheet" href="./semantic/dist/semantic.min.css">
+    <link rel="stylesheet" href="./custom.css">
+  </head>
+  <body>
+    <div class="ui text menu">
+      <a class="ui right dropdown item">
+        <i class="sidebar icon"></i>
+        <div class="menu">
+          <div id="import" class="item">
+            <i class="teal cloud upload icon"></i>
+            导入数据
+          </div>
+          <div id="export" class="item">
+            <i class="teal cloud download icon"></i>
+            导出CSV</div>
+          <div id="backup" class="item">
+            <i class="teal database icon"></i>
+            备份数据库</div>
+          <div id="about" class="item">
+            <i class="teal info circle icon"></i>
+            关于</div>
         </div>
-        <div id="export" class="item">
-          <i class="teal cloud download icon"></i>
-          导出CSV</div>
-        <div id="backup" class="item">
-          <i class="teal database icon"></i>
-          备份数据库</div>
-        <div id="about" class="item">
-          <i class="teal info circle icon"></i>
-          关于</div>
+      </a>
+    </div>
+    <div class="ui fluid action input">
+      <input id="query-text" type="text" placeholder="输入业务名称进行查询">
+      <button id="query-button" class="ui teal icon button">
+        <i class="search icon"></i>
+      </button>
+    </div>
+    <div class="ui small import modal">
+      <h4 class="ui header">
+        导入数据
+      </h4>
+      <div class="ui warning message grid">
+        <div class="thirteen wide column">
+          <p>以下操作均会删除现有数据库</p>
+          <p>如有必要请先备份</p>
+        </div>
+        <div class="three wide column">
+          <i class="ui huge yellow warning sign icon"></i>
+        </div>
       </div>
-    </a>
-  </div>
-  <div class="ui fluid action input">
-    <input id="query" type="text" placeholder="查询业务">
-    <button class="ui teal icon button">
-      <i class="search icon"></i>
-    </button>
-  </div>
-  <div class="ui small import modal">
-    <h4 class="ui header">
-      导入数据
-    </h4>
-  <div class="ui warning message grid">
-    <div class="thirteen wide column">
-      <p>以下操作均会删除现有数据库</p>
-      <p>如有必要请先备份</p>
-    </div>
-    <div class="three wide column">
-      <i class="ui huge red warning sign icon"></i>
-    </div>
-  </div>
-    <div class="ui form">
-      <div class="grouped fields">
-        <div class="field">
-          <div class="ui radio checkbox">
-            <input class="data-source" value="import-from-file" type="radio" name="data-source" checked>
-            <label>从 CSV 文件导入</label>
+      <div class="ui form">
+        <div class="grouped fields">
+          <div class="field">
+            <div class="ui radio checkbox">
+              <input class="data-source" value="import-from-file" type="radio" name="data-source" checked>
+              <label>从 CSV 文件导入</label>
+            </div>
+          </div>
+          <div class="field">
+            <div class="ui radio checkbox">
+              <input class="data-source" value="import-from-db" type="radio" name="data-source">
+              <label>从数据库文件导入</label>
+            </div>
           </div>
         </div>
-        <div class="field">
-          <div class="ui radio checkbox">
-            <input class="data-source" value="import-from-db" type="radio" name="data-source">
-            <label>从数据库文件导入</label>
+      </div>
+      <div class="ui divider hidden"></div>
+      <button id="import-next-button" class="ui teal icon button">
+        下一步
+        <i class="arrow right icon"></i>
+      </button>
+    </div>
+    <div class="ui small select-files modal">
+      <i class="ui red close icon"></i>
+      <h4 class="ui header">
+        从文件夹或者从指定文件导入数据, 格式均为 CSV .
+      </h4>
+      <div class="ui divider hidden"></div>
+      <button id="import-from-folder" class="ui teal right labeled icon button">
+        <i class="folder icon"></i>
+        从文件夹导入
+      </button>
+      <div class="ui divider hidden"></div>
+      <div class="files">
+        <div class="input-wrapper" data-content="">
+          <div class="ui fluid action input">
+            <input id="lteb" type="text" disabled>
+            <button class="ui teal right labeled icon button">
+              <i class="file text icon"></i>
+              LTE 业务
+            </button>
+          </div>
+        </div>
+        <div class="ui divider hidden"></div>
+        <div class="input-wrapper" data-content="">
+          <div class="ui fluid action input">
+            <input id="ltet" type="text" disabled>
+            <button class="ui teal right labeled icon button">
+              <i class="file text icon"></i>
+              LTE Tunnel
+            </button>
+          </div>
+        </div>
+        <div class="ui divider hidden"></div>
+        <div class="input-wrapper" data-content="">
+          <div class="ui fluid action input">
+            <input id="ces" type="text" disabled>
+            <button class="ui teal right labeled icon button">
+              <i class="file text icon"></i>
+              非LTE业务CES
+            </button>
+          </div>
+        </div>
+        <div class="ui divider hidden"></div>
+        <div class="input-wrapper" data-content="">
+          <div class="ui fluid action input">
+            <input id="eth" type="text" disabled>
+            <button class="ui teal right labeled icon button">
+              <i class="file text icon"></i>
+              非LTE业务ETH
+            </button>
+          </div>
+        </div>
+        <div class="ui divider hidden"></div>
+        <div class="input-wrapper" data-content="">
+          <div class="ui fluid action input">
+            <input id="guard-group" type="text" disabled>
+            <button class="ui teal right labeled icon button">
+              <i class="file text icon"></i>
+              非LTE Tunnel保护组
+            </button>
+          </div>
+        </div>
+        <div class="ui divider hidden"></div>
+        <div class="input-wrapper" data-content="">
+          <div class="ui fluid action input">
+            <input id="non-ltet" type="text" disabled>
+            <button class="ui teal right labeled icon button">
+              <i class="file text icon"></i>
+              非LTE Tunnel
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="ui divider hidden"></div>
+      <button id="import-from-file-next" class="ui right teal icon button">
+        下一步
+        <i class="arrow right icon"></i>
+      </button>
+    </div>
+    <div class="ui small importing modal">
+      <h4 class="ui header">导入数据</h4>
+      <div class="ui fluid vertical steps">
+        <div id="create-table-step" class="step">
+          <i class="ui notched circle loading icon"></i>
+          <div class="content">
+            <div class="title">建立数据表</div>
+            <div class="description">建立相关业务表格</div>
+          </div>
+        </div>
+        <div id="ltet-step" class="step">
+          <i class="ui notched circle loading icon"></i>
+          <div class="content">
+            <div class="title">提取LTE Tunnel</div>
+            <div class="description"></div>
+          </div>
+        </div>
+        <div id="lteb-step" class="step">
+          <i class="ui notched circle loading icon"></i>
+          <div class="content">
+            <div class="title">提取LTE业务</div>
+            <div class="description"></div>
+          </div>
+        </div>
+        <div id="ces-step" class="step">
+          <i class="ui notched circle loading icon"></i>
+          <div class="content">
+            <div class="title">提取CES</div>
+            <div class="description"></div>
+          </div>
+        </div>
+        <div id="eth-step" class="step">
+          <i class="ui notched circle loading icon"></i>
+          <div class="content">
+            <div class="title">提取ETH</div>
+            <div class="description"></div>
+          </div>
+        </div>
+        <div id="guard-group-step" class="step">
+          <i class="ui notched circle loading icon"></i>
+          <div class="content">
+            <div class="title">提取Tunnel保护组</div>
+            <div class="description"></div>
+          </div>
+        </div>
+        <div id="non-ltet-step" class="step">
+          <i class="ui notched circle loading icon"></i>
+          <div class="content">
+            <div class="title">提取非LTE Tunnel</div>
+            <div class="description"></div>
+          </div>
+        </div>
+      </div>
+      <button id="done-steps" class="ui teal right icon button" disabled>
+        完成
+      </button>
+    </div>
+    <div class="ui small export modal">
+      <h4 class="ui header">
+        导出数据
+      </h4>
+      <div class="ui divider hidden"></div>
+      <div class="ui checkbox">
+        <input id="" type="checkbox" value="lte" checked>
+        <label>导出LTE</label>
+      </div>
+      <div class="ui divider hidden"></div>
+      <div class="ui checkbox">
+        <input id="" type="checkbox" value="non-lte" checked>
+        <label>导出非LTE</label>
+      </div>
+      <div class="ui divider hidden"></div>
+      <button class="ui teal right icon button">
+        导出
+      </button>
+    </div>
+    <div class="ui small exporting modal">
+      <h4 class="ui header">正在保存</h4>
+      <div class="ui fluid vertical steps">
+        <div id="exporting-lte-step" class="step">
+          <i class="ui notched circle loading icon"></i>
+          <div class="content">
+            <div class="title">导出LTE业务共同路由</div>
+            <div class="description"></div>
+          </div>
+        </div>
+        <div id="exporting-non-lte-step" class="step">
+          <i class="ui notched circle loading icon"></i>
+          <div class="content">
+            <div class="title">导出非LTE业务共同路由</div>
+            <div class="description"></div>
+          </div>
+        </div>
+      </div>
+      <button class="ui teal right icon disabled button">
+        完成
+      </button>
+    </div>
+    <div class="ui large query modal">
+      <h4 class="ui header">记录数: <span id="record-total">0</span></h4>
+      <div class="ui hidden divider"></div>
+    </div>
+    <div class="ui small about modal">
+      <h5 class="ui header">
+        Tunnel Inspector v0.5.1
+      </h5>
+      <div class="ui icon list">
+        <div class="item">
+          <i class="ui mail icon"></i>
+          <div class="content">
+            <a href="mailto:icymindt@gmail.com">icymindt@gmail.com</a>
+          </div>
+        </div>
+        <div class="icon item">
+          <i class="ui github icon"></i>
+          <div class="content">
+            <a href="https://github.com/icymind">https://github.com/icymind</a>
           </div>
         </div>
       </div>
     </div>
-    <div class="ui divider hidden"></div>
-    <button id="import-next-button" class="ui teal icon button">
-      下一步
-      <i class="arrow right icon"></i>
-    </button>
-  </div>
-  <div class="ui small select-files modal">
-    <h4 class="ui header">
-      请选择各业务对应的数据文件, 格式均为 CSV .
-    </h4>
-    <div class="files">
-      <div class="ui fluid action input">
-        <input id="lteb" type="text" name="">
-        <button class="ui teal right labeled icon button">
-          <i class="file text icon"></i>
-          LTE 业务
-        </button>
-      </div>
-      <div class="ui divider hidden"></div>
-      <div class="ui fluid action input">
-        <input id="ltet" type="text" name="">
-        <button class="ui teal right labeled icon button">
-          <i class="file text icon"></i>
-          LTE Tunnel
-        </button>
-      </div>
-      <div class="ui divider hidden"></div>
-      <div class="ui fluid action input">
-        <input id="ces" type="text" name="">
-        <button class="ui teal right labeled icon button">
-          <i class="file text icon"></i>
-          非LTE业务CES
-        </button>
-      </div>
-      <div class="ui divider hidden"></div>
-      <div class="ui fluid action input">
-        <input id="eth" type="text" name="">
-        <button class="ui teal right labeled icon button">
-          <i class="file text icon"></i>
-          非LTE业务ETH
-        </button>
-      </div>
-      <div class="ui divider hidden"></div>
-      <div class="ui fluid action input">
-        <input id="guard-group" type="text" name="">
-        <button class="ui teal right labeled icon button">
-          <i class="file text icon"></i>
-          非LTE Tunnel保护组
-        </button>
-      </div>
-      <div class="ui divider hidden"></div>
-      <div class="ui fluid action input">
-        <input id="non-ltet" type="text" name="">
-        <button class="ui teal right labeled icon button">
-          <i class="file text icon"></i>
-          非LTE Tunnel
-        </button>
-      </div>
+    <div class="ui small info modal">
+      <p id="modal-info"></p>
     </div>
-    <div class="ui divider hidden"></div>
-    <button id="import-from-file-next" class="ui right teal icon button">
-      下一步
-      <i class="arrow right icon"></i>
-    </button>
-  </div>
-  <div class="ui small about modal">
-    <h5 class="ui header">
-      Tunnel Inspector v0.0.1
-    </h5>
-    <div class="ui icon list">
-      <div class="item">
-        <i class="ui mail icon"></i>
-        <div class="content">
-          <a href="mailto:icymindt@gmail.com">icymindt@gmail.com</a>
-        </div>
-      </div>
-      <div class="icon item">
-        <i class="ui github icon"></i>
-        <div class="content">
-          <a href="https://github.com/icymind">https://github.com/icymind</a>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-<div class="ui small info modal">
-  <p id="modal-info"></p>
-</div>
-<script>window.$ = window.jQuery = require("./node_modules/jquery/dist/jquery.min.js")</script>
-<script src="./semantic/dist/semantic.min.js"></script>
-<script src="inspector.js"></script>
-</body>
+    <script>window.$ = window.jQuery = require("./node_modules/jquery/dist/jquery.min.js")</script>
+    <script src="./semantic/dist/semantic.min.js"></script>
+    <script src="inspector.js"></script>
+  </body>
 </html>

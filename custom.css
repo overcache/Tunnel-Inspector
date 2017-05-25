@@ -19,3 +19,8 @@ body {
 .files button {
   width: 204px;
 }
+
+.tunnel-cell {
+  /* font-size: 80%; */
+  line-height: 1.3em;
+}

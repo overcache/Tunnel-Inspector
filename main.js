@@ -6,9 +6,9 @@ let win
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 450,
-    height: 600,
-    minWidth: 450,
+    width: 800,
+    height: 700,
+    minWidth: 500,
   })
 
   win.loadURL(url.format({
