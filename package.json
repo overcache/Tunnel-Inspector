@@ -29,7 +29,6 @@
     "chai": "^3.5.0",
     "electron-rebuild": "^1.5.11",
     "mocha": "^3.4.1",
-    "object-sizeof": "^1.2.0",
     "rewire": "^2.5.2"
   }
 }
