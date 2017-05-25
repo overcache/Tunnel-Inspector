@@ -446,8 +446,8 @@ function sqlRowToCSVRow(record, type) {
     TDestElement = record.work_dest_element
     TDestPort = record.work_dest_port
     TMiddleElements = record.work_middle_elements ? record.work_middle_elements.split("\n") : []
-    TMiddleInPorts = record.work_in_ports ? record.work_in_ports.split("\n") : []
-    TMiddleOutPorts = record.work_out_ports ? record.work_out_ports.split("\n") : []
+    TMiddleInPorts = record.work_middle_in_ports ? record.work_middle_in_ports.split("\n") : []
+    TMiddleOutPorts = record.work_middle_out_ports ? record.work_middle_out_ports.split("\n") : []
   } else {
     BDestElement = record.b_guard_dest_element
     BDestPort = record.b_guard_dest_port
@@ -457,8 +457,8 @@ function sqlRowToCSVRow(record, type) {
     TDestElement = record.guard_dest_element
     TDestPort = record.guard_dest_port
     TMiddleElements = record.guard_middle_elements ? record.guard_middle_elements.split("\n") : []
-    TMiddleInPorts = record.guard_in_ports ? record.guard_in_ports.split("\n") : []
-    TMiddleOutPorts = record.guard_out_ports ? record.guard_out_ports.split("\n") : []
+    TMiddleInPorts = record.guard_middle_in_ports ? record.guard_middle_in_ports.split("\n") : []
+    TMiddleOutPorts = record.guard_middle_out_ports ? record.guard_middle_out_ports.split("\n") : []
   }
   const result = []
   result.push(record.b_name)
@@ -644,16 +644,16 @@ function createNonLTECommonRouteView(db) {
     work.dest_element as work_dest_element,
     work.dest_port as work_dest_port,
     work.middle_elements as work_middle_elements,
-    work.middle_in_ports as work_in_ports,
-    work.middle_out_ports as work_out_ports,
+    work.middle_in_ports as work_middle_in_ports,
+    work.middle_out_ports as work_middle_out_ports,
     guard.name as guard_name,
     guard.src_element as guard_src_element,
     guard.src_port as guard_src_port,
     guard.dest_element as guard_dest_element,
     guard.dest_port as guard_dest_port,
     guard.middle_elements as guard_middle_elements,
-    guard.middle_in_ports as guard_in_ports,
-    guard.middle_out_ports as guard_out_ports
+    guard.middle_in_ports as guard_middle_in_ports,
+    guard.middle_out_ports as guard_middle_out_ports
     from non_lte_b_t_view as temp
     inner join non_lte_tunnels as work
       on temp.work_tunnel = work.name
