@@ -37,6 +37,7 @@
   },
   "build": {
     "appId": "com.icymind.tunnelinspector",
+    "asar": false,
     "mac": {
       "category": "tools"
     }

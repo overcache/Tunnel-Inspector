@@ -11,7 +11,6 @@ function createWindow() {
     minWidth: 500,
   })
   // win.maximize()
-
   win.loadURL(url.format({
     pathname: path.join(__dirname, "index.html"),
     protocol: "file",
