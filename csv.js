@@ -7,6 +7,12 @@ const jschardet = require("jschardet")
 const iconv = require("iconv-lite")
 const stringify = require("csv-stringify")
 
+const lineReaderOption = {
+  separator: "\r\n",
+  encoding: "binary",
+  bufferSize: 1048576,
+}
+
 
 // promise
 function detectEncoding(file) {
@@ -224,7 +230,7 @@ async function extractTunnels(db, file, type, callback) {
   }
 
   let recordCounter = 0
-  lineReader.eachLine(file, { separator: "\r\n", encoding: "binary" }, async (raw, last) => {
+  lineReader.eachLine(file, lineReaderOption, async (raw, last) => {
     const line = iconv.decode(Buffer.from(raw, "binary"), encoding)
     if (tunnelPatten.test(line)) {
       parse(line, (err, output) => {
@@ -262,7 +268,7 @@ async function extractBusinesses(db, file, callback) {
   let record = null
   let recordCounter = 0
 
-  lineReader.eachLine(file, { separator: "\r\n", encoding: "binary" }, async (raw, last) => {
+  lineReader.eachLine(file, lineReaderOption, async (raw, last) => {
     const line = iconv.decode(Buffer.from(raw, "binary"), encoding)
     if (workTunnelPatten.test(line)) {
       const [value] = parseSync(line)
@@ -313,7 +319,7 @@ async function extractNonLTETunnelsGuardGroup(db, file, callback) {
   }
 
   let recordCounter = 0
-  lineReader.eachLine(file, { separator: "\r\n", encoding: "binary" }, async (raw, last) => {
+  lineReader.eachLine(file, lineReaderOption, async (raw, last) => {
     const line = iconv.decode(Buffer.from(raw, "binary"), encoding)
     if (tunnelPatten.test(line)) {
       parse(line, (err, output) => {
@@ -377,7 +383,7 @@ async function extractNonLTEBusinesses(db, file, type, callback) {
   }
 
   let recordCounter = 0
-  lineReader.eachLine(file, { separator: "\r\n", encoding: "binary" }, async (raw, last) => {
+  lineReader.eachLine(file, lineReaderOption, async (raw, last) => {
     const line = iconv.decode(Buffer.from(raw, "binary"), encoding)
     if (workTunnelPatten.test(line)) {
       parse(line, (err, output) => {
