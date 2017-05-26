@@ -39,7 +39,7 @@
   "build": {
     "appId": "com.icymind.tunnelinspector",
     "win": {
-        "ico": "./logo.ico"
+        "icon": "./logo.ico"
     },
     "mac": {
       "category": "tools"
