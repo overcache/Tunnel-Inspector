@@ -11,7 +11,6 @@ const { expect } = require("chai")
 const lineReaderOption = {
   separator: "\r\n",
   encoding: "binary",
-  bufferSize: 524288,
 }
 
 function parsePromise(line) {

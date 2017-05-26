@@ -239,6 +239,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return
     }
     resetAllStep()
+    showStep("create-table-step")
     files.forEach((value, key) => {
       if (value) {
         showStep(`${key}-step`)
