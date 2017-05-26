@@ -38,6 +38,7 @@
   },
   "build": {
     "appId": "com.icymind.tunnelinspector",
+    "compression": "maximum",
     "win": {
         "icon": "./logo.ico"
     },
