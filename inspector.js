@@ -97,19 +97,21 @@ function fillInputField(id, file) {
   element.value = path.basename(file)
   popupDiv.dataset.content = file
 }
-function completeStep(key, recordCounter) {
+function completeStep(key, time, recordCounter) {
   const stepDiv = document.getElementById(`${key}-step`)
   const icon = stepDiv.firstElementChild
   const description = stepDiv.querySelector(".description")
   icon.classList.remove("loading")
   stepDiv.classList.add("completed")
+  let infoText = `耗时 ${time} 秒`
   if (key !== "create-table") {
     if (key.indexOf("export") < 0) {
-      description.innerHTML = `共导入 ${recordCounter} 条记录`
+      infoText += `. 共导入 ${recordCounter} 条记录`
     } else {
-      description.innerHTML = `共导出 ${recordCounter} 条记录`
+      infoText += `. 共导出 ${recordCounter} 条记录`
     }
   }
+  description.innerHTML = infoText
 }
 function resetSelectFiles() {
   const inputWrapper = document.getElementsByClassName("input-wrapper")
@@ -255,8 +257,9 @@ document.addEventListener("DOMContentLoaded", () => {
       .modal("show")
 
     const db = new sqlite3.Database(dbfile)
+    let startTime = Date.now()
     await csv.createTables(db)
-    completeStep("create-table")
+    completeStep("create-table", (Date.now() - startTime) / 1000)
     const filesArr = []
     files.forEach(async (value, key) => {
       if (value) {
@@ -264,8 +267,9 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     })
     for (let i = 0; i < filesArr.length; i += 1) {
+      const taskST = Date.now()
       const recordCounter = await csv.extractFile(db, filesArr[i][0], filesArr[i][1])
-      completeStep(filesArr[i][1], recordCounter)
+      completeStep(filesArr[i][1], (Date.now() - taskST) / 1000, recordCounter)
     }
     db.close()
     document.getElementById("done-steps").disabled = false
@@ -315,6 +319,7 @@ document.addEventListener("DOMContentLoaded", () => {
         .modal("show")
       const promises = []
       if (LTE) {
+        const startTime = Date.now()
         const ws = fs.createWriteStream(path.join(savePath, "LTE业务共同路由.csv"))
         ws.write("\ufeff")
         const p1 = new Promise((resolve) => {
@@ -328,10 +333,11 @@ document.addEventListener("DOMContentLoaded", () => {
           })
         })
         promises.push(Promise.all([p1, p2]).then((results) => {
-          completeStep("exporting-lte", results[0])
+          completeStep("exporting-lte", (Date.now() - startTime) / 1000, results[0])
         }))
       }
       if (nonLTE) {
+        const startTime = Date.now()
         const ws = fs.createWriteStream(path.join(savePath, "非LTE业务共同路由.csv"))
         ws.write("\ufeff")
         const p1 = new Promise((resolve) => {
@@ -345,7 +351,7 @@ document.addEventListener("DOMContentLoaded", () => {
           })
         })
         promises.push(Promise.all([p1, p2]).then((results) => {
-          completeStep("exporting-non-lte", results[0])
+          completeStep("exporting-non-lte", (Date.now() - startTime) / 1000, results[0])
         }))
       }
       Promise.all(promises).then(() => {
