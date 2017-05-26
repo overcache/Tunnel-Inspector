@@ -257,15 +257,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const db = new sqlite3.Database(dbfile)
     await csv.createTables(db)
     completeStep("create-table")
-    const promises = []
     files.forEach(async (value, key) => {
       if (value) {
-        promises.push(csv.extractFile(db, value, key).then((recordCounter) => {
-          completeStep(key, recordCounter)
-        }))
+        const recordCounter = await csv.extractFile(db, value, key)
+        completeStep(key, recordCounter)
       }
     })
-    await Promise.all(promises)
     db.close()
     document.getElementById("done-steps").disabled = false
   })
