@@ -1,16 +1,26 @@
 const fs = require("fs")
 const lineReader = require("line-reader")
 const parse = require("csv-parse")
-const parseSync = require("csv-parse/lib/sync")
+// const parseSync = require("csv-parse/lib/sync")
 const assert = require("assert")
 const jschardet = require("jschardet")
 const iconv = require("iconv-lite")
 const stringify = require("csv-stringify")
+const { expect } = require("chai")
 
 const lineReaderOption = {
   separator: "\r\n",
   encoding: "binary",
-  bufferSize: 1048576,
+  bufferSize: 524288,
+}
+
+function parsePromise(line) {
+  return new Promise((resolve, reject) => {
+    parse(line, (err, output) => {
+      if (err) reject()
+      resolve(output)
+    })
+  })
 }
 
 
@@ -254,6 +264,45 @@ function extractTunnelsPromise(db, file, type) {
     extractTunnels(db, file, type, resolve)
   })
 }
+function insertPairLineToDB(stmt, pair) {
+  // record = {}
+  // record.b_id = value[4]
+  // record.name = value[3]
+  // record.src_element = value[11]
+  // record.src_port = value[12]
+  // record.work_dest_element = value[20]
+  // record.work_dest_port = value[21]
+  // record.work_tunnel = split(value[34])
+  // NEW LINE: guard
+  // record.guard_dest_element = value[20] // todo
+  // record.guard_dest_port = value[21]
+  // record.guard_tunnel = split(value[34])
+  // await stmtRun(db, stmt, [
+  // record.b_id, record.name, record.src_element, record.src_port,
+  // record.work_dest_element, record.work_dest_port,
+  // record.guard_dest_element, record.guard_dest_port,
+  // record.work_tunnel, record.guard_tunnel,
+  // ])
+  const promises = []
+  pair.forEach((line) => {
+    promises.push(new Promise((resolve, reject) => {
+      parse(line, (err, output) => {
+        if (err) {
+          reject()
+        }
+        resolve(output)
+      })
+    }))
+  })
+  Promise.all(promises).then(([[work], [guard]]) => {
+    stmt.run([
+      work[4], work[3], work[11], work[12],
+      work[20], work[21],
+      guard[20], guard[21],
+      split(work[34]), split(guard[34]),
+    ])
+  })
+}
 
 async function extractBusinesses(db, file, callback) {
   const workTunnelPatten = /^[是|否],[0|1],.*?,.*?,\d*?,.*?,.*?,.+?,.*?,工作,/i
@@ -265,39 +314,20 @@ async function extractBusinesses(db, file, callback) {
   if (encoding === null) {
     throw new Error("can not detect file's encoding")
   }
-  let record = null
   let recordCounter = 0
+  const pair = []
 
-  lineReader.eachLine(file, lineReaderOption, async (raw, last) => {
+  lineReader.eachLine(file, lineReaderOption, (raw, last) => {
     const line = iconv.decode(Buffer.from(raw, "binary"), encoding)
     if (workTunnelPatten.test(line)) {
-      const [value] = parseSync(line)
-      assert.equal(value === undefined, false)
-      assert.equal(record, null)
-      record = {}
-      record.b_id = value[4]
-      record.name = value[3]
-      record.src_element = value[11]
-      record.src_port = value[12]
-      record.work_dest_element = value[20]
-      record.work_dest_port = value[21]
-      record.work_tunnel = split(value[34])
+      expect(pair.length).to.be.equal(0)
+      pair.push(line)
     } else if (guardTunnelPatten.test(line)) {
-      const [value] = parseSync(line)
-      assert.equal(value === undefined, false)
-      assert.equal(record === null, false)
-
-      record.guard_dest_element = value[20] // todo
-      record.guard_dest_port = value[21]
-      record.guard_tunnel = split(value[34])
-      await stmtRun(db, stmt, [
-        record.b_id, record.name, record.src_element, record.src_port,
-        record.work_dest_element, record.work_dest_port,
-        record.guard_dest_element, record.guard_dest_port,
-        record.work_tunnel, record.guard_tunnel,
-      ])
-      record = null
+      expect(pair.length).to.be.equal(1)
+      pair.push(line)
+      insertPairLineToDB(stmt, pair)
       recordCounter += 1
+      pair.length = 0
     }
     if (last) {
       setTimeout(() => {
