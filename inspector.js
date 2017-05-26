@@ -3,6 +3,7 @@ const fs = require("fs-extra")
 const path = require("path")
 const glob = require("glob")
 const { dialog, app } = require("electron").remote
+const shell = require("electron").shell
 const csv = require("./csv.js")
 const sqlite3 = require("sqlite3").verbose()
 
@@ -384,5 +385,10 @@ document.addEventListener("DOMContentLoaded", () => {
         },
       })
     .modal("show")
+  })
+
+  $(document).on("click", "a[href^='http']", (event) => {
+    event.preventDefault()
+    shell.openExternal(event.target.href)
   })
 })
