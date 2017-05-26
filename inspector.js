@@ -6,7 +6,7 @@ const { dialog, app } = require("electron").remote
 const csv = require("./csv.js")
 const sqlite3 = require("sqlite3").verbose()
 
-const dbfile = path.join(app.getPath("appData"), "tunnelinspector/CMCC.db")
+const dbfile = path.join(app.getPath("appData"), "Tunnel-Inspector/CMCC.db")
 
 function clearClassList(element) {
   if (element.classList) {

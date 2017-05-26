@@ -1,6 +1,6 @@
 {
-  "name": "tunnelinspector",
-  "version": "0.5.1",
+  "name": "Tunnel-Inspector",
+  "version": "0.6.2",
   "description": "CMCC tunnel inspector",
   "main": "main.js",
   "scripts": {
@@ -38,7 +38,6 @@
   },
   "build": {
     "appId": "com.icymind.tunnelinspector",
-    "asar": false,
     "mac": {
       "category": "tools"
     }
