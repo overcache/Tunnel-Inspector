@@ -1,6 +1,6 @@
 {
   "name": "Tunnel-Inspector",
-  "version": "0.6.2",
+  "version": "0.6.4",
   "description": "CMCC tunnel inspector",
   "main": "main.js",
   "scripts": {
