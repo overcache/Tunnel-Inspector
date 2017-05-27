@@ -1,8 +1,8 @@
 const fs = require("fs")
+const path = require("path")
 const lineReader = require("line-reader")
 const jschardet = require("jschardet")
 const iconv = require("iconv-lite")
-const stringify = require("csv-stringify")
 const { expect } = require("chai")
 const papa = require("papaparse")
 
@@ -506,45 +506,37 @@ function sqlRowToCSVRows(row) {
   return [work, guard]
 }
 
-function exportLTE(db, ws, callback) {
-  const sql = "select * from lte_common_route_view"
-  const newline = ",,,,,,\r\n"
+function exportToCSV(db, file, type, exportAll, pagination, callback) {
+  const view = type === "lte" ? "lte_common_route_view" : "non_lte_common_route_view"
+  const sql = `select * from ${view}`
   const header = [["业务名称", "保护形式", "源网元信息", "宿网元信息", "承载Tunnel名称", "承载Tunnel路由", "同路由部分"]]
-  stringify(header, (err, output) => {
-    ws.write(output)
-  })
+
+  let writeOutCounter = 0
+  let page = 1
+  const dirname = path.dirname(file)
+  const basename = path.basename(file, ".csv")
+
+  let ws = fs.createWriteStream(path.join(dirname, `${basename}-${page}.csv`))
+  ws.write("\ufeff")
+  ws.write(`${papa.unparse(header, { header: false })}\r\n`)
   db.each(sql, (err, row) => {
     const result = sqlRowToCSVRows(row)
-    stringify(result, (error, output) => {
-      ws.write(output)
-      ws.write(newline)
-    })
-  }, (error, total) => {
-    ws.end()
-    if (typeof callback === "function") {
-      callback(total)
+    if (exportAll || result[0][result[0].length - 1]) {
+      result[1][0] = ""
+      ws.write(`${papa.unparse(result, { header: false })}\r\n`)
+      writeOutCounter += 1
+      if (pagination && writeOutCounter % pagination === 0) {
+        ws.end()
+        page += 1
+        ws = fs.createWriteStream(path.join(dirname, `${basename}-${page}.csv`))
+        ws.write("\ufeff")
+        ws.write(`${papa.unparse(header, { header: false })}\r\n`)
+      }
     }
-  })
-}
-
-function exportNonLTE(db, ws, callback) {
-  const sql = "select * from non_lte_common_route_view"
-
-  const newline = ",,,,,,\r\n"
-  const header = [["业务名称", "保护形式", "源网元信息", "宿网元信息", "承载Tunnel名称", "承载Tunnel路由", "同路由部分"]]
-  stringify(header, (err, output) => {
-    ws.write(output)
-  })
-  db.each(sql, (err, row) => {
-    const result = sqlRowToCSVRows(row)
-    stringify(result, (error, output) => {
-      ws.write(output)
-      ws.write(newline)
-    })
   }, (error, total) => {
     ws.end()
     if (typeof callback === "function") {
-      callback(total)
+      callback(writeOutCounter)
     }
   })
 }
@@ -705,6 +697,5 @@ module.exports = {
   getRecord,
   closeDB,
   queryBusiness,
-  exportLTE,
-  exportNonLTE,
+  exportToCSV,
 }

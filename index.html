@@ -225,6 +225,41 @@
         <label>导出非LTE</label>
       </div>
       <div class="ui divider hidden"></div>
+      <div id="export-all" class="ui floating labeld icon dropdown button">
+        <i class="filter icon"></i>
+        <span class="text">过滤</span>
+        <div class="menu">
+          <div class="item" data-value="0">
+            只导出存在共同路由的业务(默认)
+          </div>
+          <div class="item" data-value="1">
+            导出所有业务
+          </div>
+        </div>
+      </div>
+      <div class="ui divider hidden"></div>
+      <div id="export-pagination" class="ui floating labeld icon dropdown button">
+        <i class="code icon"></i>
+        <span class="text">分页</span>
+        <div class="menu">
+          <div class="item" data-value="0">
+            不分页
+          </div>
+          <div class="item" data-value="1000">
+            1000
+          </div>
+          <div class="item" data-value="3000">
+            3000(默认)
+          </div>
+          <div class="item" data-value="5000">
+            5000
+          </div>
+          <div class="item" data-value="10000">
+            10000
+          </div>
+        </div>
+      </div>
+      <div class="ui divider hidden"></div>
       <button class="ui teal right icon button">
         导出
       </button>

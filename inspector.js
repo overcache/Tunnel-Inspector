@@ -346,42 +346,31 @@ document.addEventListener("DOMContentLoaded", () => {
         .modal("show")
       const promises = []
       const taskBegin = Date.now()
+      const exportAll = $("#export-all").dropdown("get value") === "1"
+      let pagination = $("#export-pagination").dropdown("get value")
+      if (pagination === "") {
+        pagination = "3000"
+      }
       if (LTE) {
         activeStep("exporting-lte")
         const startTime = Date.now()
-        const ws = fs.createWriteStream(path.join(savePath, "LTE业务共同路由.csv"))
-        ws.write("\ufeff")
-        const p1 = new Promise((resolve) => {
-          csv.exportLTE(db, ws, (recordCounter) => {
-            resolve(recordCounter)
-          })
-        })
-        const p2 = new Promise((resolve) => {
-          ws.on("finish", () => {
+        const outFile = path.join(savePath, "LTE业务共同路由.csv")
+        promises.push(new Promise((resolve) => {
+          csv.exportToCSV(db, outFile, "lte", exportAll, Number(pagination), (recordCounter) => {
+            completeStep("exporting-lte", (Date.now() - startTime) / 1000, recordCounter)
             resolve()
           })
-        })
-        promises.push(Promise.all([p1, p2]).then((results) => {
-          completeStep("exporting-lte", (Date.now() - startTime) / 1000, results[0])
         }))
       }
       if (nonLTE) {
         activeStep("exporting-non-lte")
         const startTime = Date.now()
-        const ws = fs.createWriteStream(path.join(savePath, "非LTE业务共同路由.csv"))
-        ws.write("\ufeff")
-        const p1 = new Promise((resolve) => {
-          csv.exportNonLTE(db, ws, (recordCounter) => {
-            resolve(recordCounter)
-          })
-        })
-        const p2 = new Promise((resolve) => {
-          ws.on("finish", () => {
+        const outFile = path.join(savePath, "非LTE业务共同路由.csv")
+        promises.push(new Promise((resolve) => {
+          csv.exportToCSV(db, outFile, "non-lte", exportAll, Number(pagination), (recordCounter) => {
+            completeStep("exporting-non-lte", (Date.now() - startTime) / 1000, recordCounter)
             resolve()
           })
-        })
-        promises.push(Promise.all([p1, p2]).then((results) => {
-          completeStep("exporting-non-lte", (Date.now() - startTime) / 1000, results[0])
         }))
       }
       Promise.all(promises).then(() => {

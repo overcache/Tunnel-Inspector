@@ -2,10 +2,10 @@
 /* eslint func-names: 0 */
 const { expect } = require("chai")
 const path = require("path")
-const csv = require(path.join(__dirname, "../csv.js"))
-
+const fs = require("fs")
 const sqlite3 = require("sqlite3").verbose()
 
+const csv = require(path.join(__dirname, "../csv.js"))
 const testDB = "/Users/simon/Desktop/test.db"
 const testFile = "/Users/simon/Downloads/CMCC/CMCC-CSV"
 const files = [
@@ -22,12 +22,14 @@ describe("Test module csv", function () {
   this.timeout(300000)
 
   before(async function before() {
-    const db = new sqlite3.Database(testDB)
-    await csv.createTables(db)
-    for (let i = 0; i < files.length; i += 1) {
-      await csv.extractFile(db, files[i][1], files[i][0])
-    }
-    await csv.closeDB(db)
+    /*
+     * const db = new sqlite3.Database(testDB)
+     * await csv.createTables(db)
+     * for (let i = 0; i < files.length; i += 1) {
+     *   await csv.extractFile(db, files[i][1], files[i][0])
+     * }
+     * await csv.closeDB(db)
+     */
   })
 
   it("Total LTE tunnels records must be 17225", async function () {
@@ -134,6 +136,23 @@ describe("Test module csv", function () {
     db.each(sql, (err, row) => {
       expect(csv.sqlRowToCSVRows(row)).to.be.deep.equal(result)
     }, (err, total) => {
+      db.close()
+      done()
+    })
+  })
+
+  it("Test export LTE's output file.", function (done) {
+    const db = new sqlite3.Database(testDB)
+    const out = "/Users/simon/Desktop/lte-out.csv"
+    csv.exportToCSV(db, out, "lte", true, true, () => {
+      db.close()
+      done()
+    })
+  })
+  it("Test export nonLTE's output file.", function (done) {
+    const db = new sqlite3.Database(testDB)
+    const out = "/Users/simon/Desktop/not-lte-out.csv"
+    csv.exportToCSV(db, out, "non-lte", true, true, () => {
       db.close()
       done()
     })
