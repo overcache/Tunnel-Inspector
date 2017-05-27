@@ -184,6 +184,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // init dropdown
   $(".ui.dropdown").dropdown()
   $(".ui.checkbox").checkbox()
+  fs.readFile("package.json", (err, data) => {
+    const version = JSON.parse(data).version
+    document.getElementById("version").innerHTML = version
+  })
 
   document.getElementById("about").addEventListener("click", () => {
     $(".about.modal")

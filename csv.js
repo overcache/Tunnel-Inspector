@@ -1,7 +1,5 @@
 const fs = require("fs")
 const lineReader = require("line-reader")
-const parse = require("csv-parse")
-// const parseSync = require("csv-parse/lib/sync")
 const jschardet = require("jschardet")
 const iconv = require("iconv-lite")
 const stringify = require("csv-stringify")
@@ -37,7 +35,7 @@ function detectEncoding(file) {
 }
 
 // promise
-function close(db) {
+function closeDB(db) {
   return new Promise((resolve, reject) => {
     db.close((err) => {
       if (err) {
@@ -57,8 +55,19 @@ function finalizePromise(stmt) {
   })
 }
 
+function getAllRecords(db, sql) {
+  return new Promise((resolve, reject) => {
+    db.all(sql, (err, row) => {
+      if (err) {
+        console.log(err)
+        reject(err)
+      }
+      resolve(row)
+    })
+  })
+}
 // promise
-function get(db, sql) {
+function getRecord(db, sql) {
   return new Promise((resolve, reject) => {
     db.get(sql, (err, row) => {
       if (err) {
@@ -77,20 +86,6 @@ function stmtRun(db, stmt, values) {
       stmt.run(values)
       resolve()
     })
-  })
-}
-
-// promise
-function all(stmt, values) {
-  return new Promise((resolve, reject) => {
-    stmt.all(values, (err, rows) => {
-      if (err) {
-        console.log(err)
-        reject(err)
-      }
-      resolve(rows)
-    })
-    stmt.finalize()
   })
 }
 
@@ -494,7 +489,7 @@ function sqlRowToCSVRow(record, type) {
     }
     result.push(routes.join("\n"))
   } else {
-    conosle.log(TMiddleElements)
+    console.log(TMiddleElements)
     result.push("")
   }
   return result
@@ -700,33 +695,15 @@ function createTables(db) {
 
 async function queryBusiness(db, name) {
   const stmt = db.prepare("select * from non_lte_common_route_view where b_name = ? union select * from lte_common_route_view where b_name = ?")
-  const rows = await all(stmt, [name, name])
+  const rows = await getAllRecords(stmt, [name, name])
   return rows.map(row => sqlRowToCSVRows(row))
 }
 
 module.exports = {
-  createTunnelsTable,
-  createBusinessesTable,
-  createNonLTEBusinessesTable,
-  createNonLTETunnelsGuardGroupTable,
-  createLTECommonRouteView,
-  createNonLTEBTView,
-  createNonLTECommonRouteView,
   createTables,
-
-  extractTunnels,
-  extractTunnelsPromise,
-  extractBusinesses,
-  extractBusinessesPromise,
-  extractNonLTEBusinesses,
-  extractNonLTEBusinessesPromise,
-  extractNonLTETunnelsGuardGroup,
-  extractNonLTETunnelsGuardGroupPromise,
   extractFile,
-
-  get,
-  all,
-  close,
+  getRecord,
+  closeDB,
   queryBusiness,
   exportLTE,
   exportNonLTE,
