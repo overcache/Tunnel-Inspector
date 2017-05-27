@@ -274,7 +274,8 @@ document.addEventListener("DOMContentLoaded", () => {
       .modal("show")
 
     const db = new sqlite3.Database(dbfile)
-    db.run("pragma journal_mode=off")
+    // db.run("pragma journal_mode=off")
+    // db.run("pragma synchronous=off")
     const startTime = Date.now()
     await csv.createTables(db)
     completeStep("create-table", (Date.now() - startTime) / 1000)

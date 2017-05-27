@@ -63,7 +63,7 @@ function finalizePromise(stmt) {
     setTimeout(() => {
       stmt.finalize()
       resolve()
-    }, 5000)
+    }, 500)
   })
 }
 
@@ -240,6 +240,7 @@ async function extractTunnels(db, file, type, callback) {
   }
 
   let recordCounter = 0
+  db.run("begin transaction")
   lineReader.eachLine(file, lineReaderOption, async (raw, last) => {
     const line = iconv.decode(Buffer.from(raw, "binary"), encoding)
     if (tunnelPatten.test(line)) {
@@ -254,6 +255,7 @@ async function extractTunnels(db, file, type, callback) {
     }
     if (last) {
       await finalizePromise(stmt)
+      db.run("commit")
       callback(recordCounter)
     }
   })
@@ -307,7 +309,7 @@ async function extractBusinesses(db, file, callback) {
   const pair = []
 
   db.run("begin transaction")
-  lineReader.eachLine(file, lineReaderOption, (raw, last) => {
+  lineReader.eachLine(file, lineReaderOption, async (raw, last) => {
     const line = iconv.decode(Buffer.from(raw, "binary"), encoding)
     if (workTunnelPatten.test(line)) {
       expect(pair.length).to.be.equal(0)
@@ -320,12 +322,9 @@ async function extractBusinesses(db, file, callback) {
       pair.length = 0
     }
     if (last) {
-      setTimeout(() => {
-        stmt.finalize(() => {
-          db.run("commit")
-          callback(recordCounter)
-        })
-      }, 500)
+      await finalizePromise(stmt)
+      db.run("commit")
+      callback(recordCounter)
     }
   })
 }
@@ -342,6 +341,7 @@ async function extractNonLTETunnelsGuardGroup(db, file, callback) {
   }
 
   let recordCounter = 0
+  db.run("begin transaction")
   lineReader.eachLine(file, lineReaderOption, async (raw, last) => {
     const line = iconv.decode(Buffer.from(raw, "binary"), encoding)
     if (tunnelPatten.test(line)) {
@@ -387,9 +387,9 @@ async function extractNonLTETunnelsGuardGroup(db, file, callback) {
       })
     }
     if (last) {
-      setTimeout(() => {
-        stmt.finalize(() => callback(recordCounter))
-      }, 5000)
+      await finalizePromise(stmt)
+      db.run("commit")
+      callback(recordCounter)
     }
   })
 }
@@ -406,6 +406,7 @@ async function extractNonLTEBusinesses(db, file, type, callback) {
   }
 
   let recordCounter = 0
+  db.run("begin transaction")
   lineReader.eachLine(file, lineReaderOption, async (raw, last) => {
     const line = iconv.decode(Buffer.from(raw, "binary"), encoding)
     if (workTunnelPatten.test(line)) {
@@ -424,9 +425,9 @@ async function extractNonLTEBusinesses(db, file, type, callback) {
       })
     }
     if (last) {
-      setTimeout(() => {
-        stmt.finalize(() => callback(recordCounter))
-      }, 5000)
+      await finalizePromise(stmt)
+      db.run("commit")
+      callback(recordCounter)
     }
   })
 }
