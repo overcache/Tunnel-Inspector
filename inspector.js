@@ -274,7 +274,8 @@ document.addEventListener("DOMContentLoaded", () => {
       .modal("show")
 
     const db = new sqlite3.Database(dbfile)
-    let startTime = Date.now()
+    db.run("pragma journal_mode=off")
+    const startTime = Date.now()
     await csv.createTables(db)
     completeStep("create-table", (Date.now() - startTime) / 1000)
     const filesArr = []

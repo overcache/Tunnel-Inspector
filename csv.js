@@ -11,6 +11,7 @@ const papa = require("papaparse")
 const lineReaderOption = {
   separator: "\r\n",
   encoding: "binary",
+  bufferSize: 10240,
 }
 
 function parsePromise(line) {
@@ -282,14 +283,14 @@ function insertPairLineToDB(stmt, pair) {
   // record.guard_dest_element, record.guard_dest_port,
   // record.work_tunnel, record.guard_tunnel,
   // ])
-  const [work] = papa.parse(pair[0]).data
-  const [guard] = papa.parse(pair[1]).data
-  stmt.run([
+  const [work] = papa.parse(pair[0], { delimiter: "," }).data
+  const [guard] = papa.parse(pair[1], { delimiter: "," }).data
+  stmt.run(
     work[4], work[3], work[11], work[12],
     work[20], work[21],
     guard[20], guard[21],
     split(work[34]), split(guard[34]),
-  ])
+  )
 }
 
 async function extractBusinesses(db, file, callback) {
@@ -305,6 +306,7 @@ async function extractBusinesses(db, file, callback) {
   let recordCounter = 0
   const pair = []
 
+  db.run("begin transaction")
   lineReader.eachLine(file, lineReaderOption, (raw, last) => {
     const line = iconv.decode(Buffer.from(raw, "binary"), encoding)
     if (workTunnelPatten.test(line)) {
@@ -319,8 +321,11 @@ async function extractBusinesses(db, file, callback) {
     }
     if (last) {
       setTimeout(() => {
-        stmt.finalize(() => callback(recordCounter))
-      }, 5000)
+        stmt.finalize(() => {
+          db.run("commit")
+          callback(recordCounter)
+        })
+      }, 500)
     }
   })
 }
