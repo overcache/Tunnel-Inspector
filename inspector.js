@@ -223,7 +223,9 @@ document.addEventListener("DOMContentLoaded", () => {
           showModalInfo(err)
         } else {
           files.forEach((file) => {
-            if (/保护组/.test(file)) {
+            if (/共同路由/.test(file)) {
+              // do nothing
+            } else if (/保护组/.test(file)) {
               fillInputField("guard-group", file)
             } else if (/非\s*LTE.*Tunnel/i.test(file)) {
               fillInputField("non-ltet", file)
