@@ -2,11 +2,11 @@ const fs = require("fs")
 const lineReader = require("line-reader")
 const parse = require("csv-parse")
 // const parseSync = require("csv-parse/lib/sync")
-const assert = require("assert")
 const jschardet = require("jschardet")
 const iconv = require("iconv-lite")
 const stringify = require("csv-stringify")
 const { expect } = require("chai")
+const papa = require("papaparse")
 
 const lineReaderOption = {
   separator: "\r\n",
@@ -282,25 +282,14 @@ function insertPairLineToDB(stmt, pair) {
   // record.guard_dest_element, record.guard_dest_port,
   // record.work_tunnel, record.guard_tunnel,
   // ])
-  const promises = []
-  pair.forEach((line) => {
-    promises.push(new Promise((resolve, reject) => {
-      parse(line, (err, output) => {
-        if (err) {
-          reject()
-        }
-        resolve(output)
-      })
-    }))
-  })
-  Promise.all(promises).then(([[work], [guard]]) => {
-    stmt.run([
-      work[4], work[3], work[11], work[12],
-      work[20], work[21],
-      guard[20], guard[21],
-      split(work[34]), split(guard[34]),
-    ])
-  })
+  const [work] = papa.parse(pair[0]).data
+  const [guard] = papa.parse(pair[1]).data
+  stmt.run([
+    work[4], work[3], work[11], work[12],
+    work[20], work[21],
+    guard[20], guard[21],
+    split(work[34]), split(guard[34]),
+  ])
 }
 
 async function extractBusinesses(db, file, callback) {
