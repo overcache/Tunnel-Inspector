@@ -1,78 +1,80 @@
-/* eslint func-names: ["error", "never"], prefer-arrow-callback: ["error", "never"]  */
+/* eslint prefer-arrow-callback: 0 */
+/* eslint func-names: 0 */
 const { expect } = require("chai")
 const fs = require("fs")
 const path = require("path")
 const sqlite3 = require("sqlite3").verbose()
 const iconv = require("iconv-lite")
 const csv = require(path.join(__dirname, "../csv.js"))
-const dbpath =path.join(__dirname, "aa.db")
-const LTETunnelsPath = "/Users/simon/Downloads/CMCC/LTE业务Tunnel信息表.csv"
-const nonLTETunnelsPath = "/Users/simon/Downloads/CMCC/非LTE业务Tunnel信息表.csv"
-const LTEPath = "/Users/simon/Downloads/CMCC/LTE业务信息表.csv"
-const nonLTEPath = ["/Users/simon/Downloads/CMCC/非LTE业务CES.csv", "/Users/simon/Downloads/CMCC/非LTE业务ETH.csv"]
-const nonLTEGuardGroupPath = "/Users/simon/Downloads/CMCC/非LTE业务Tunnel保护组.csv"
+
+const testDB = "/Users/simon/Desktop/test.db"
+const LTET = "/Users/simon/Downloads/CMCC/CMCC-CSV/LTE业务Tunnel信息表.csv"
+const LTEB = "/Users/simon/Downloads/CMCC/CMCC-CSV/LTE业务信息表.csv"
+const CES = "/Users/simon/Downloads/CMCC/CMCC-CSV/非LTE业务CES.csv"
+const ETH = "/Users/simon/Downloads/CMCC/CMCC-CSV/非LTE业务ETH.csv"
+const guardGroup = "/Users/simon/Downloads/CMCC/CMCC-CSV/非LTE业务Tunnel保护组.csv"
+const nonLTET = "/Users/simon/Downloads/CMCC/CMCC-CSV/非LTE业务Tunnel信息表.csv"
+const files = [
+  ["ltet", LTET],
+  ["lteb", LTEB],
+  ["ces", CES],
+  ["eth", ETH],
+  ["non-ltet", nonLTET],
+  ["guard-group", guardGroup],
+]
 
 
 describe("Test module csv", function () {
-
   this.timeout(300000)
-  before(async function () {
-    const db = new sqlite3.Database(dbpath)
-    // await csv.createTunnelsTable(db, "lte")
-    // await csv.createBusinessesTable(db)
-    // await csv.createTunnelsTable(db, "non_lte")
-    // await csv.createNonLTEBusinessesTable(db)
-    // await csv.createNonLTETunnelsGuardGroupTable(db)
-    // console.log("create tables finished")
-    // await csv.extractTunnelsPromise(db, LTETunnelsPath, "lte")
-    // console.log("extract lte tunnels finished")
-    // await csv.extractTunnelsPromise(db, nonLTETunnelsPath, "non_lte")
-    // console.log("extract non-lte tunnels finished")
-    // await csv.extractBusinessesPromise(db, LTEPath)
-    // console.log("extract lte business finished")
-    // await csv.extractNonLTEBusinessesPromise(db, nonLTEPath[0], "ces")
-    // console.log("extract non-lte ces finished")
-    // await csv.extractNonLTEBusinessesPromise(db, nonLTEPath[1], "eth")
-    // console.log("extract non-lte eth finished")
-    // await csv.extractNonLTETunnelsGuardGroupPromise(db, nonLTEGuardGroupPath)
-    // console.log("extract non-lte tunntles guard group finished")
+
+  before(async function before() {
+    const db = new sqlite3.Database(testDB)
+    await csv.createTables(db)
+    for (let i = 0; i < files.length; i += 1) {
+      await csv.extractFile(db, files[i][1], files[i][0])
+    }
     await csv.close(db)
   })
 
-  it("total lte tunnels records", async function () {
-    const db = new sqlite3.Database(dbpath)
+  it("Total LTE tunnels records must be 17225", async function () {
+    const db = new sqlite3.Database(testDB)
     const { count } = await csv.get(db, "select count(*) as count from lte_tunnels")
     expect(count).to.be.equal(17225)
+    await csv.close(db)
   })
 
-  it("total non-lte-tunnels records", async function () {
-    const db = new sqlite3.Database(dbpath)
+  it("Total nonLTE tunnels records must be 12361", async function () {
+    const db = new sqlite3.Database(testDB)
     const { count } = await csv.get(db, "select count(*) as count from non_lte_tunnels")
     expect(count).to.be.equal(12361)
+    await csv.close(db)
   })
 
-  it("total businesses records", async function () {
-    const db = new sqlite3.Database(dbpath)
+  it("Total LTE businesses records must be 9586", async function () {
+    const db = new sqlite3.Database(testDB)
     const { count } = await csv.get(db, "select count(*) as count from lte_businesses")
     expect(count).to.be.equal(9586)
+    await csv.close(db)
   })
 
-  it("total non-lte-businesses records", async function () {
-    const db = new sqlite3.Database(dbpath)
+  it("Total nonlTE businesses records must be 9839", async function () {
+    const db = new sqlite3.Database(testDB)
     const { count } = await csv.get(db, "select count(*) as count from non_lte_businesses")
     // ETH: (1814-8)/2
     // CES: (17880-8)/2
     expect(count).to.be.equal(9839)
+    await csv.close(db)
   })
 
-  it("total non-lte-guard-group records", async function () {
-    const db = new sqlite3.Database(dbpath)
+  it("Total nonLTE guard-group records must be 4006", async function () {
+    const db = new sqlite3.Database(testDB)
     const { count } = await csv.get(db, "select count(*) as count from non_lte_tunnels_guard_group")
     expect(count).to.be.equal(4006)
+    await csv.close(db)
   })
 
-  it("extractTunnels", async function () {
-    const db = new sqlite3.Database(dbpath)
+  it("LTE tunnel: 231-白沙核心调度环2-2-11602-南宁隆安古潭中真福乍LTE must be equal the value in the file", async function () {
+    const db = new sqlite3.Database(testDB)
     const row = await csv.get(db, "select * from lte_tunnels where t_id = '32213'")
     expect(row.t_id).to.be.equal("32213")
     expect(row.name).to.be.equal("231-白沙核心调度环2-2-11602-南宁隆安古潭中真福乍LTE")
@@ -86,8 +88,8 @@ describe("Test module csv", function () {
     await csv.close(db)
   })
 
-  it("extractBusinesses", async function () {
-    const db = new sqlite3.Database(dbpath)
+  it("LTE business: 南宁青秀区东郊分局_HLH新-网管 must be equal the value in the file", async function () {
+    const db = new sqlite3.Database(testDB)
     const row = await csv.get(db, "select * from lte_businesses where b_id = '371764'")
     expect(row.b_id).to.be.equal("371764")
     expect(row.name).to.be.equal("南宁青秀区东郊分局_HLH新-网管")
@@ -99,65 +101,41 @@ describe("Test module csv", function () {
     await csv.close(db)
   })
 
-  it("inspect id 1 by csv", async function () {
-    const db = new sqlite3.Database(dbpath)
-    await csv.inspect(db, 1)
-    await csv.close(db)
-  })
-
-  it("inspect id 2", async function () {
-    const db = new sqlite3.Database(dbpath)
-    await csv.inspect(db, 2)
-    await csv.close(db)
-  })
-
-  it.skip("inspect all", async function () {
-    const db = new sqlite3.Database(dbpath)
-    const { count } = await csv.get(db, "select count(*) as count from lte_businesses")
-    let total = 0
-    for (let i = 1; i <= 100; i += 1) {
-      try {
-        await csv.inspect(db, i)
-      } catch(error) {
-        total += 1
-        console.log(error.message)
-      }
-    }
-    console.log(`total error: ${total}`)
-  })
-
-  it("inspect 南宁西乡塘区锦虹棉纺织公司LTE-网管", function (done) {
-    const sql = String.raw`select
-      b.name as b_name,
-      b.src_element as b_src_element,
-      b.src_port as b_src_port,
-      b.work_dest_element as b_work_dest_element,
-      b.work_dest_port as b_work_dest_port,
-      b.guard_dest_element as b_guard_dest_element,
-      b.guard_dest_port as b_guard_dest_port,
-      w.name as work_name,
-      w.src_element as work_src_element,
-      w.src_port as work_src_port,
-      w.dest_element as work_dest_element,
-      w.dest_port as work_dest_port,
-      w.middle_elements as work_middle_elements,
-      w.middle_in_ports as work_middle_in_ports,
-      w.middle_out_ports as work_middle_out_ports,
-      g.name as guard_name,
-      g.src_element as guard_src_element,
-      g.src_port as guard_src_port,
-      g.dest_element as guard_dest_element,
-      g.dest_port as guard_dest_port,
-      g.middle_elements as guard_middle_elements,
-      g.middle_in_ports as guard_middle_in_ports,
-      g.middle_out_ports as guard_middle_out_ports
-      from lte_businesses as b
-      inner join lte_tunnels as w
-        on b.work_tunnel = w.name
-      inner join lte_tunnels as g
-        on b.guard_tunnel = g.name
-      where b.name = "南宁西乡塘区锦虹棉纺织公司LTE-网管"
-      `
+  it("Function sqlRowToCSVRows must work correctly for nonLTE businesse", function (done) {
+    const sql = "select * from non_lte_common_route_view where b_name='南宁西乡塘区锦虹棉纺织公司LTE-网管'"
+    /*
+     * const sql = String.raw`select
+     *   b.name as b_name,
+     *   b.src_element as b_src_element,
+     *   b.src_port as b_src_port,
+     *   b.work_dest_element as b_work_dest_element,
+     *   b.work_dest_port as b_work_dest_port,
+     *   b.guard_dest_element as b_guard_dest_element,
+     *   b.guard_dest_port as b_guard_dest_port,
+     *   w.name as work_name,
+     *   w.src_element as work_src_element,
+     *   w.src_port as work_src_port,
+     *   w.dest_element as work_dest_element,
+     *   w.dest_port as work_dest_port,
+     *   w.middle_elements as work_middle_elements,
+     *   w.middle_in_ports as work_middle_in_ports,
+     *   w.middle_out_ports as work_middle_out_ports,
+     *   g.name as guard_name,
+     *   g.src_element as guard_src_element,
+     *   g.src_port as guard_src_port,
+     *   g.dest_element as guard_dest_element,
+     *   g.dest_port as guard_dest_port,
+     *   g.middle_elements as guard_middle_elements,
+     *   g.middle_in_ports as guard_middle_in_ports,
+     *   g.middle_out_ports as guard_middle_out_ports
+     *   from lte_businesses as b
+     *   inner join lte_tunnels as w
+     *     on b.work_tunnel = w.name
+     *   inner join lte_tunnels as g
+     *     on b.guard_tunnel = g.name
+     *   where b.name = "南宁西乡塘区锦虹棉纺织公司LTE-网管"
+     *   `
+     */
 
     const result = [
       [
@@ -192,32 +170,11 @@ describe("Test module csv", function () {
         "11011-南宁西乡塘区锦虹棉纺织公司LTE（IP微波）#1-1 <===> 1298-南宁西乡塘区连畴村戏台岭站TD#2-2",
       ],
     ]
-    const db = new sqlite3.Database(dbpath)
+    const db = new sqlite3.Database(testDB)
     db.each(sql, (err, row) => {
-      expect(csv.mergeRow(row)).to.be.deep.equal(result)
+      expect(csv.sqlRowToCSVRows(row)).to.be.deep.equal(result)
     }, (err, total) => {
-      done()
-    })
-  })
-
-  it("exportsLTE", function (done) {
-    const db = new sqlite3.Database(path.join(__dirname, "aa.db"))
-    const ws = fs.createWriteStream("output.csv")
-    ws.write("\ufeff")
-    csv.exportsLTE(db, ws)
-    ws.on("finish", () => {
-      console.log("done")
-      done()
-    })
-  })
-
-  it("exportsNonLTE", function (done) {
-    const db = new sqlite3.Database(path.join(__dirname, "aa.db"))
-    const ws = fs.createWriteStream("output-non-lte.csv")
-    ws.write("\ufeff")
-    csv.exportsLTE(db, ws)
-    ws.on("finish", () => {
-      console.log("done")
+      db.close()
       done()
     })
   })

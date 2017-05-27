@@ -14,16 +14,6 @@ const lineReaderOption = {
   bufferSize: 10240,
 }
 
-function parsePromise(line) {
-  return new Promise((resolve, reject) => {
-    parse(line, (err, output) => {
-      if (err) reject()
-      resolve(output)
-    })
-  })
-}
-
-
 // promise
 function detectEncoding(file) {
   return new Promise((resolve, reject) => {
@@ -244,14 +234,12 @@ async function extractTunnels(db, file, type, callback) {
   lineReader.eachLine(file, lineReaderOption, async (raw, last) => {
     const line = iconv.decode(Buffer.from(raw, "binary"), encoding)
     if (tunnelPatten.test(line)) {
-      parse(line, (err, output) => {
-        const value = output[0]
-        if (value) {
-          stmtRun(db, stmt, [value[4], value[3], value[8],
-            value[9], value[14], value[15], value[23], value[24], value[26]])
-          recordCounter += 1
-        }
-      })
+      const value = papa.parse(line).data[0]
+      if (value) {
+        stmtRun(db, stmt, [value[4], value[3], value[8],
+          value[9], value[14], value[15], value[23], value[24], value[26]])
+        recordCounter += 1
+      }
     }
     if (last) {
       await finalizePromise(stmt)
@@ -287,12 +275,10 @@ function insertPairLineToDB(stmt, pair) {
   // ])
   const [work] = papa.parse(pair[0], { delimiter: "," }).data
   const [guard] = papa.parse(pair[1], { delimiter: "," }).data
-  stmt.run(
-    work[4], work[3], work[11], work[12],
+  stmt.run(work[4], work[3], work[11], work[12],
     work[20], work[21],
     guard[20], guard[21],
-    split(work[34]), split(guard[34]),
-  )
+    split(work[34]), split(guard[34]))
 }
 
 async function extractBusinesses(db, file, callback) {
@@ -345,46 +331,45 @@ async function extractNonLTETunnelsGuardGroup(db, file, callback) {
   lineReader.eachLine(file, lineReaderOption, async (raw, last) => {
     const line = iconv.decode(Buffer.from(raw, "binary"), encoding)
     if (tunnelPatten.test(line)) {
-      parse(line, (err, output) => {
-        const value = output[0]
-        if (value) {
-          const name = value[2]
-          const role = value[7].split("\n")
-          const tunnels = value[8].split("\n")
-          let workTunnel
-          let guardTunnel
-          if (role.length === 2) {
-            workTunnel = tunnels[role.indexOf("工作")]
-            guardTunnel = tunnels[role.indexOf("保护")]
-          } else {
-            const pattern = /_RVS.*$|_RV$|_R$|_Reverse$/i
-            const tmp = tunnels.filter(tunnel => !pattern.test(tunnel))
+      const value = papa.parse(line).data[0]
+      if (value) {
+        const name = value[2]
+        const role = value[7].split("\n")
+        const tunnels = value[8].split("\n")
+        let workTunnel
+        let guardTunnel
+        if (role.length === 2) {
+          workTunnel = tunnels[role.indexOf("工作")]
+          guardTunnel = tunnels[role.indexOf("保护")]
+        } else {
+          const pattern = /_RVS.*$|_RV$|_R$|_Reverse$/i
+          const tmp = tunnels.filter(tunnel => !pattern.test(tunnel))
 
-            const guardPattern = /_PRT$|_PR$|_P$|-P$/i
+          const guardPattern = /_PRT$|_PR$|_P$|-P$/i
+          tmp.forEach((tunnel) => {
+            if (guardPattern.test(tunnel)) {
+              guardTunnel = tunnel
+            } else {
+              workTunnel = tunnel
+            }
+          })
+          if (workTunnel === undefined) {
+            // console.log(value)
+            const strictGuardPattern = /_PRT$|_PR$|_P$/i
             tmp.forEach((tunnel) => {
-              if (guardPattern.test(tunnel)) {
-                guardTunnel = tunnel
-              } else {
+              if (!strictGuardPattern.test(tunnel)) {
                 workTunnel = tunnel
               }
             })
-            if (workTunnel === undefined) {
-              // console.log(value)
-              const strictGuardPattern = /_PRT$|_PR$|_P$/i
-              tmp.forEach((tunnel) => {
-                if (!strictGuardPattern.test(tunnel)) {
-                  workTunnel = tunnel
-                }
-              })
-            }
-            if (guardTunnel === undefined) {
-              guardTunnel = workTunnel
-            }
           }
-          stmtRun(db, stmt, [name, workTunnel, guardTunnel])
-          recordCounter += 1
+          if (guardTunnel === undefined) {
+            guardTunnel = workTunnel
+          }
         }
-      })
+        stmtRun(db, stmt, [name, workTunnel, guardTunnel])
+        recordCounter += 1
+      }
+      // })
     }
     if (last) {
       await finalizePromise(stmt)
@@ -410,19 +395,17 @@ async function extractNonLTEBusinesses(db, file, type, callback) {
   lineReader.eachLine(file, lineReaderOption, async (raw, last) => {
     const line = iconv.decode(Buffer.from(raw, "binary"), encoding)
     if (workTunnelPatten.test(line)) {
-      parse(line, (err, output) => {
-        const value = output[0]
-        if (value) {
-          if (type === "eth") {
-            stmtRun(db, stmt, [value[4], value[3], value[11],
-              value[12], value[20], value[21], split(value[34])])
-          } else {
-            stmtRun(db, stmt, [value[4], value[3], value[11],
-              value[12], value[19], value[20], split(value[32])])
-          }
+      const value = papa.parse(line).data[0]
+      if (value) {
+        if (type === "eth") {
+          stmtRun(db, stmt, [value[4], value[3], value[11],
+            value[12], value[20], value[21], split(value[34])])
+        } else {
+          stmtRun(db, stmt, [value[4], value[3], value[11],
+            value[12], value[19], value[20], split(value[32])])
         }
-        recordCounter += 1
-      })
+      }
+      recordCounter += 1
     }
     if (last) {
       await finalizePromise(stmt)
