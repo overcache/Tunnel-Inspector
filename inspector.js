@@ -97,15 +97,21 @@ function fillInputField(id, file) {
   element.value = path.basename(file)
   popupDiv.dataset.content = file
 }
-function completeStep(key, time, recordCounter) {
-  const stepDiv = document.getElementById(`${key}-step`)
+function completeStep(idPrefix, time, recordCounter) {
+  const stepDiv = document.getElementById(`${idPrefix}-step`)
   const icon = stepDiv.firstElementChild
   const description = stepDiv.querySelector(".description")
   icon.classList.remove("loading")
-  stepDiv.classList.add("completed")
-  let infoText = `耗时 ${time} 秒`
-  if (key !== "create-table") {
-    if (key.indexOf("export") < 0) {
+  // stepDiv.classList.remove("active")
+  let infoText = ""
+  if (idPrefix.indexOf("summary") < 0) {
+    stepDiv.classList.add("completed")
+    infoText += `耗时 ${time} 秒`
+  } else {
+    infoText += `${time} 秒`
+  }
+  if (recordCounter) {
+    if (idPrefix.indexOf("export") < 0) {
       infoText += `. 共导入 ${recordCounter} 条记录`
     } else {
       infoText += `. 共导出 ${recordCounter} 条记录`
@@ -125,14 +131,22 @@ function resetAllStep() {
   Array.from(steps).forEach((stepDiv) => {
     stepDiv.style.display = "none"
     stepDiv.classList.remove("completed")
-    const icon = stepDiv.firstElementChild
-    icon.classList.add("loading")
+    stepDiv.classList.add("disabled")
     const description = stepDiv.querySelectorAll("div.description")[0]
     description.innerHTML = ""
   })
 }
-function showStep(id) {
-  document.getElementById(id).style.display = null
+function activeStep(idPrefix) {
+  const element = document.getElementById(`${idPrefix}-step`)
+  // element.classList.add("active")
+  element.classList.remove("disabled")
+  const icon = element.firstElementChild
+  if (idPrefix.indexOf("summary") < 0) {
+    icon.classList.add("loading")
+  }
+}
+function showStep(idPrefix) {
+  document.getElementById(`${idPrefix}-step`).style.display = null
 }
 
 function newTable(result) {
@@ -241,10 +255,11 @@ document.addEventListener("DOMContentLoaded", () => {
       return
     }
     resetAllStep()
-    showStep("create-table-step")
+    showStep("create-table")
+    activeStep("create-table")
     files.forEach((value, key) => {
       if (value) {
-        showStep(`${key}-step`)
+        showStep(key)
       }
     })
     $(".importing.modal")
@@ -267,11 +282,15 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     })
     for (let i = 0; i < filesArr.length; i += 1) {
+      activeStep(filesArr[i][1])
       const taskST = Date.now()
       const recordCounter = await csv.extractFile(db, filesArr[i][0], filesArr[i][1])
       completeStep(filesArr[i][1], (Date.now() - taskST) / 1000, recordCounter)
     }
     db.close()
+    showStep("imported-summary")
+    activeStep("imported-summary")
+    completeStep("imported-summary", (Date.now() - startTime) / 1000)
     document.getElementById("done-steps").disabled = false
   })
 
@@ -306,8 +325,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (savePath) {
       const db = new sqlite3.Database(dbfile)
       resetAllStep()
-      if (LTE) showStep("exporting-lte-step")
-      if (nonLTE) showStep("exporting-non-lte-step")
+      if (LTE) showStep("exporting-lte")
+      if (nonLTE) showStep("exporting-non-lte")
       $(".export.modal").modal("hide")
       $(".exporting.modal")
         .modal({
@@ -318,7 +337,9 @@ document.addEventListener("DOMContentLoaded", () => {
         })
         .modal("show")
       const promises = []
+      const taskBegin = Date.now()
       if (LTE) {
+        activeStep("exporting-lte")
         const startTime = Date.now()
         const ws = fs.createWriteStream(path.join(savePath, "LTE业务共同路由.csv"))
         ws.write("\ufeff")
@@ -337,6 +358,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }))
       }
       if (nonLTE) {
+        activeStep("exporting-non-lte")
         const startTime = Date.now()
         const ws = fs.createWriteStream(path.join(savePath, "非LTE业务共同路由.csv"))
         ws.write("\ufeff")
@@ -355,6 +377,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }))
       }
       Promise.all(promises).then(() => {
+        showStep("exported-summary")
+        activeStep("exported-summary")
+        completeStep("exported-summary", (Date.now() - taskBegin) / 1000)
         document.querySelector(".exporting.modal button").classList.remove("disabled")
       })
     }
