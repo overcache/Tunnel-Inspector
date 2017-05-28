@@ -506,7 +506,7 @@ function sqlRowToCSVRows(row) {
   return [work, guard]
 }
 
-function exportToCSV(db, file, type, exportAll, pagination, callback) {
+function exportToCSV(db, file, type, exportAll, pagination, encoding = "utf8", callback) {
   const view = type === "lte" ? "lte_common_route_view" : "non_lte_common_route_view"
   const sql = `select * from ${view}`
   const header = [["业务名称", "保护形式", "源网元信息", "宿网元信息", "承载Tunnel名称", "承载Tunnel路由", "同路由部分"]]
@@ -515,22 +515,37 @@ function exportToCSV(db, file, type, exportAll, pagination, callback) {
   let page = 1
   const dirname = path.dirname(file)
   const basename = path.basename(file, ".csv")
+  const encodingLowerCase = encoding.toLowerCase()
+  // const outFileEncoding = "GB2312"
+  // const outFileEncoding = "UTF8"
 
   let ws = fs.createWriteStream(path.join(dirname, `${basename}-${page}.csv`))
-  ws.write("\ufeff")
-  ws.write(`${papa.unparse(header, { header: false })}\r\n`)
+  if (encodingLowerCase === "utf8") {
+    ws.write(new Buffer("\xEF\xBB\xBF", "binary"))
+    ws.write(`${papa.unparse(header, { header: false })}\r\n`)
+  } else {
+    ws.write(iconv.encode(`${papa.unparse(header, { header: false })}\r\n`, encoding))
+  }
   db.each(sql, (err, row) => {
     const result = sqlRowToCSVRows(row)
     if (exportAll || result[0][result[0].length - 1]) {
       result[1][0] = ""
-      ws.write(`${papa.unparse(result, { header: false })}\r\n`)
+      if (encodingLowerCase === "utf8") {
+        ws.write(`${papa.unparse(result, { header: false })}\r\n`)
+      } else {
+        ws.write(iconv.encode(`${papa.unparse(result, { header: false })}\r\n`, encoding))
+      }
       writeOutCounter += 1
       if (pagination && writeOutCounter % pagination === 0) {
         ws.end()
         page += 1
         ws = fs.createWriteStream(path.join(dirname, `${basename}-${page}.csv`))
-        ws.write("\ufeff")
-        ws.write(`${papa.unparse(header, { header: false })}\r\n`)
+        if (encodingLowerCase === "utf8") {
+          ws.write(new Buffer("\xEF\xBB\xBF", "binary"))
+          ws.write(`${papa.unparse(header, { header: false })}\r\n`)
+        } else {
+          ws.write(iconv.encode(`${papa.unparse(header, { header: false })}\r\n`, encoding))
+        }
       }
     }
   }, (error, total) => {

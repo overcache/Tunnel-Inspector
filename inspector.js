@@ -1,6 +1,7 @@
 /* global $ */
 const fs = require("fs-extra")
 const path = require("path")
+const os = require("os")
 const glob = require("glob")
 const { dialog, app } = require("electron").remote
 const shell = require("electron").shell
@@ -346,17 +347,22 @@ document.addEventListener("DOMContentLoaded", () => {
         .modal("show")
       const promises = []
       const taskBegin = Date.now()
+      let exportEncoding = "utf8"
+      if (os.platform() === "win32" && /^6\.1\.760[01]$/.test(os.release())) {
+        exportEncoding = "GB2312"
+      }
+
       const exportAll = $("#export-all").dropdown("get value") === "1"
       let pagination = $("#export-pagination").dropdown("get value")
       if (pagination === "") {
-        pagination = "3000"
+        pagination = "0"
       }
       if (LTE) {
         activeStep("exporting-lte")
         const startTime = Date.now()
         const outFile = path.join(savePath, "LTE业务共同路由.csv")
         promises.push(new Promise((resolve) => {
-          csv.exportToCSV(db, outFile, "lte", exportAll, Number(pagination), (recordCounter) => {
+          csv.exportToCSV(db, outFile, "lte", exportAll, Number(pagination), exportEncoding, (recordCounter) => {
             completeStep("exporting-lte", (Date.now() - startTime) / 1000, recordCounter)
             resolve()
           })
@@ -367,7 +373,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const startTime = Date.now()
         const outFile = path.join(savePath, "非LTE业务共同路由.csv")
         promises.push(new Promise((resolve) => {
-          csv.exportToCSV(db, outFile, "non-lte", exportAll, Number(pagination), (recordCounter) => {
+          csv.exportToCSV(db, outFile, "non-lte", exportAll, Number(pagination), exportEncoding, (recordCounter) => {
             completeStep("exporting-non-lte", (Date.now() - startTime) / 1000, recordCounter)
             resolve()
           })

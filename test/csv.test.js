@@ -143,16 +143,18 @@ describe("Test module csv", function () {
 
   it("Test export LTE's output file.", function (done) {
     const db = new sqlite3.Database(testDB)
-    const out = "/Users/simon/Desktop/lte-out.csv"
-    csv.exportToCSV(db, out, "lte", true, true, () => {
+    const encoding = "gb2312"
+    const out = `/Users/simon/Desktop/lte-out-${encoding}.csv`
+    csv.exportToCSV(db, out, "lte", false, 500, encoding, () => {
       db.close()
       done()
     })
   })
   it("Test export nonLTE's output file.", function (done) {
     const db = new sqlite3.Database(testDB)
-    const out = "/Users/simon/Desktop/not-lte-out.csv"
-    csv.exportToCSV(db, out, "non-lte", true, true, () => {
+    const encoding = "gb2312"
+    const out = `/Users/simon/Desktop/not-lte-out-${encoding}.csv`
+    csv.exportToCSV(db, out, "non-lte", false, 0, encoding, () => {
       db.close()
       done()
     })
