@@ -150,7 +150,7 @@ function showStep(idPrefix) {
   document.getElementById(`${idPrefix}-step`).style.display = null
 }
 
-function newTable(result) {
+function newTable(result, type) {
   const work = result[0]
   const guard = result[1]
   const element = document.createElement("div")
@@ -160,6 +160,7 @@ function newTable(result) {
           <table class="ui very basic collapsing celled small table">
             <tbody>
               <tr> <td><h5>业务名称</h5></td>   <td>${work[0]}</td> </tr>
+              <tr> <td><h5>业务类型</h5></td>   <td>${type}</td> </tr>
               <tr> <td><h5>源端信息</h5></td>   <td>${work[2]}</td> </tr>
               <tr> <td><h5>工作Tunnel</h5></td> <td>${work[4]}</td> </tr>
               <tr> <td><h5>保护Tunnel</h5></td> <td>${guard[4]}</td> </tr>
@@ -354,6 +355,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (pagination === "") {
         pagination = "0"
       }
+
       if (LTE) {
         activeStep("exporting-lte")
         const startTime = Date.now()
@@ -377,6 +379,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }))
       }
       Promise.all(promises).then(() => {
+        db.close()
         showStep("exported-summary")
         activeStep("exported-summary")
         completeStep("exported-summary", (Date.now() - taskBegin) / 1000)
@@ -406,10 +409,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const resultModal = document.querySelector(".query.modal")
     resetResultModal(resultModal)
     const db = new sqlite3.Database(dbfile)
-    const results = await csv.queryBusiness(db, queryText)
-    document.getElementById("record-total").innerHTML = results.length
-    results.forEach((result) => {
-      resultModal.appendChild(newTable(result))
+    const [LTE, nonLTE] = await csv.queryBusiness(db, queryText)
+    db.close()
+    document.getElementById("record-total").innerHTML = LTE.length + nonLTE.length
+    LTE.forEach((result) => {
+      resultModal.appendChild(newTable(result, "LTE"))
+    })
+    nonLTE.forEach((result) => {
+      resultModal.appendChild(newTable(result, "非LTE"))
     })
     $(".query.modal")
       .modal({

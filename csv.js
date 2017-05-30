@@ -732,9 +732,11 @@ function createTables(db) {
 }
 
 async function queryBusiness(db, name) {
-  const stmt = db.prepare("select * from non_lte_common_route_view where b_name = ? union select * from lte_common_route_view where b_name = ?")
-  const rows = await getAllRecords(stmt, [name, name])
-  return rows.map(row => sqlRowToCSVRows(row))
+  const LTEstmt = db.prepare("select * from lte_common_route_view where b_name = ?")
+  const nonLTEstmt = db.prepare("select * from non_lte_common_route_view where b_name = ?")
+  const LTERows = await getAllRecords(LTEstmt, name)
+  const nonLTERows = await getAllRecords(nonLTEstmt, name)
+  return [LTERows.map(row => sqlRowToCSVRows(row)), nonLTERows.map(row => sqlRowToCSVRows(row))]
 }
 
 module.exports = {
