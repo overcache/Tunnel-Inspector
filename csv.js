@@ -94,7 +94,7 @@ function split(str) {
     const strs = str.split("\n")
     // _Reverse
     const pattern = /_R(everse|VS?)?$/i
-    if (pattern.test(strs[0])) {
+    if (strs[0] === "" || pattern.test(strs[0])) {
       return strs[1]
     }
     return strs[0]
@@ -428,7 +428,12 @@ function extractNonLTETunnelsGuardGroupPromise(db, file) {
 
 // workRoute, guardRoute result: String
 function common(workRoute, guardRoute) {
-  const work = workRoute.split("\n")
+  let work
+  if (workRoute === "查无此Tunnel" || workRoute === "查无保护组") {
+    work = []
+  } else {
+    work = workRoute.split("\n")
+  }
   const guard = guardRoute.split("\n")
   return work.filter(route => guard.includes(route)).join("\n")
 }
@@ -436,7 +441,10 @@ function common(workRoute, guardRoute) {
 function sqlRowToCSVRow(record, type) {
   let BDestElement
   let BDestPort
+  // 从业务表里提取出的隧道名称
   let TName
+  // 从 Tunnel 表里提取的隧道名称. 如果该名称为空, 说明找不到对应的 Tunnel
+  let TTName
   let TSrcElement
   let TSrcPort
   let TDestElement
@@ -444,11 +452,18 @@ function sqlRowToCSVRow(record, type) {
   let TMiddleElements
   let TMiddleInPorts
   let TMiddleOutPorts
+  let businessType
 
+  if (record.hasOwnProperty("gg_name")) {
+    businessType = "non-lte"
+  } else {
+    businessType = "lte"
+  }
   if (type === "工作") {
     BDestElement = record.b_work_dest_element
     BDestPort = record.b_work_dest_port
     TName = record.work_name
+    TTName = record.work_tunnel_name
     TSrcElement = record.work_src_element
     TSrcPort = record.work_src_port
     TDestElement = record.work_dest_element
@@ -460,6 +475,7 @@ function sqlRowToCSVRow(record, type) {
     BDestElement = record.b_guard_dest_element
     BDestPort = record.b_guard_dest_port
     TName = record.guard_name
+    TTName = record.guard_tunnel_name
     TSrcElement = record.guard_src_element
     TSrcPort = record.guard_src_port
     TDestElement = record.guard_dest_element
@@ -471,26 +487,39 @@ function sqlRowToCSVRow(record, type) {
   const result = []
   result.push(record.b_name)
   result.push(type)
-  result.push(`${record.b_src_element}#${record.b_src_port}`)
-  result.push(`${BDestElement}#${BDestPort}`)
-  result.push(`${TName}`)
-  const segments = []
-  const routes = []
-  segments.push(`${TSrcElement}#${TSrcPort}`)
-  if (TMiddleElements.length === TMiddleInPorts.length
-    && TMiddleElements.length === TMiddleOutPorts.length) {
-    for (let i = 0, len = TMiddleInPorts.length; i < len; i += 1) {
-      segments.push(`${TMiddleElements[i]}#${TMiddleInPorts[i]}`)
-      segments.push(`${TMiddleElements[i]}#${TMiddleOutPorts[i]}`)
-    }
-    segments.push(`${TDestElement}#${TDestPort}`)
-    for (let i = 1, len = segments.length; i < len; i += 2) {
-      routes.push(`${segments[i - 1]} <===> ${segments[i]}`)
-    }
-    result.push(routes.join("\n"))
-  } else {
-    console.log(TMiddleElements)
+  result.push(`${record.b_src_element}-${record.b_src_port}`)
+  if (!TName || TName === "null") {
+    TName = ""
+  }
+  if (!TName) {
     result.push("")
+  } else {
+    result.push(`${BDestElement}-${BDestPort}`)
+  }
+  result.push(`${TName}`)
+  if (businessType === "non-lte" && (!record.gg_name || record.gg_name === "null")) {
+    result.push("查无保护组")
+  } else if (businessType === "lte" && (!TTName || TTName === "null")) {
+    result.push("查无此Tunnel")
+  } else {
+    const segments = []
+    const routes = []
+    segments.push(`${TSrcElement}-${TSrcPort}`)
+    if (TMiddleElements.length === TMiddleInPorts.length
+      && TMiddleElements.length === TMiddleOutPorts.length) {
+      for (let i = 0, len = TMiddleInPorts.length; i < len; i += 1) {
+        segments.push(`${TMiddleElements[i]}-${TMiddleInPorts[i]}`)
+        segments.push(`${TMiddleElements[i]}-${TMiddleOutPorts[i]}`)
+      }
+      segments.push(`${TDestElement}-${TDestPort}`)
+      for (let i = 1, len = segments.length; i < len; i += 2) {
+        routes.push(`${segments[i - 1]}___${segments[i]}`)
+      }
+      result.push(routes.join("\n"))
+    } else {
+      console.log(TMiddleElements)
+      result.push("")
+    }
   }
   return result
 }
@@ -506,46 +535,44 @@ function sqlRowToCSVRows(row) {
   return [work, guard]
 }
 
+function writeCSVHeader(ws, encoding) {
+  const header = [["业务名称", "保护形式", "源网元信息", "宿网元信息", "承载Tunnel名称", "承载Tunnel路由", "同路由部分"]]
+
+  const out = `${papa.unparse(header, { header: false })}\r\n`
+  if (encoding === "utf8") {
+    ws.write(new Buffer("\xEF\xBB\xBF", "binary"))
+    ws.write(out)
+  } else {
+    ws.write(iconv.encode(out, encoding))
+  }
+}
 function exportToCSV(db, file, type, exportAll, pagination, encoding = "utf8", callback) {
   const view = type === "lte" ? "lte_common_route_view" : "non_lte_common_route_view"
   const sql = `select * from ${view}`
-  const header = [["业务名称", "保护形式", "源网元信息", "宿网元信息", "承载Tunnel名称", "承载Tunnel路由", "同路由部分"]]
 
   let writeOutCounter = 0
   let page = 1
   const dirname = path.dirname(file)
   const basename = path.basename(file, ".csv")
   const encodingLowerCase = encoding.toLowerCase()
-  // const outFileEncoding = "GB2312"
-  // const outFileEncoding = "UTF8"
 
   let ws = fs.createWriteStream(path.join(dirname, `${basename}-${page}.csv`))
-  if (encodingLowerCase === "utf8") {
-    ws.write(new Buffer("\xEF\xBB\xBF", "binary"))
-    ws.write(`${papa.unparse(header, { header: false })}\r\n`)
-  } else {
-    ws.write(iconv.encode(`${papa.unparse(header, { header: false })}\r\n`, encoding))
-  }
+  writeCSVHeader(ws, encodingLowerCase)
   db.each(sql, (err, row) => {
     const result = sqlRowToCSVRows(row)
     if (exportAll || result[0][result[0].length - 1]) {
-      result[1][0] = ""
+      const out = `${papa.unparse(result, { header: false })}\r\n\r\n`
       if (encodingLowerCase === "utf8") {
-        ws.write(`${papa.unparse(result, { header: false })}\r\n`)
+        ws.write(out)
       } else {
-        ws.write(iconv.encode(`${papa.unparse(result, { header: false })}\r\n`, encoding))
+        ws.write(iconv.encode(out, encoding))
       }
       writeOutCounter += 1
       if (pagination && writeOutCounter % pagination === 0) {
         ws.end()
         page += 1
         ws = fs.createWriteStream(path.join(dirname, `${basename}-${page}.csv`))
-        if (encodingLowerCase === "utf8") {
-          ws.write(new Buffer("\xEF\xBB\xBF", "binary"))
-          ws.write(`${papa.unparse(header, { header: false })}\r\n`)
-        } else {
-          ws.write(iconv.encode(`${papa.unparse(header, { header: false })}\r\n`, encoding))
-        }
+        writeCSVHeader(ws, encodingLowerCase)
       }
     }
   }, (error, total) => {
@@ -588,7 +615,8 @@ function createLTECommonRouteView(db) {
       b.work_dest_port as b_work_dest_port,
       b.guard_dest_element as b_guard_dest_element,
       b.guard_dest_port as b_guard_dest_port,
-      w.name as work_name,
+      b.work_tunnel as work_name,
+      w.name as work_tunnel_name,
       w.src_element as work_src_element,
       w.src_port as work_src_port,
       w.dest_element as work_dest_element,
@@ -596,7 +624,8 @@ function createLTECommonRouteView(db) {
       w.middle_elements as work_middle_elements,
       w.middle_in_ports as work_middle_in_ports,
       w.middle_out_ports as work_middle_out_ports,
-      g.name as guard_name,
+      b.guard_tunnel as guard_name,
+      g.name as guard_tunnel_name,
       g.src_element as guard_src_element,
       g.src_port as guard_src_port,
       g.dest_element as guard_dest_element,
@@ -612,7 +641,7 @@ function createLTECommonRouteView(db) {
       `
   return new Promise((resolve, reject) => {
     db.serialize(() => {
-      db.run("drop view if exists lte_view")
+      db.run("drop view if exists lte_common_route_view")
       db.run(sql, resolve)
     })
   })
@@ -628,8 +657,9 @@ function createNonLTEBTView(db) {
     b.src_port as src_port,
     b.dest_element as work_dest_element,
     b.dest_port as work_dest_port,
-    t.work_tunnel as work_tunnel,
-    t.guard_tunnel as guard_tunnel
+    b.tunnel_name as work_tunnel,
+    t.guard_tunnel as guard_tunnel,
+    t.name as gg_name
     from non_lte_businesses as b
     left join non_lte_tunnels_guard_group as t
       on b.tunnel_name = t.work_tunnel
@@ -653,7 +683,7 @@ function createNonLTECommonRouteView(db) {
     temp.work_dest_port as b_work_dest_port,
     guard.dest_element as b_guard_dest_element,
     guard.dest_port as b_guard_dest_port,
-    work.name as work_name,
+    temp.work_tunnel as work_name,
     work.src_element as work_src_element,
     work.src_port as work_src_port,
     work.dest_element as work_dest_element,
@@ -661,18 +691,19 @@ function createNonLTECommonRouteView(db) {
     work.middle_elements as work_middle_elements,
     work.middle_in_ports as work_middle_in_ports,
     work.middle_out_ports as work_middle_out_ports,
-    guard.name as guard_name,
+    temp.guard_tunnel as guard_name,
     guard.src_element as guard_src_element,
     guard.src_port as guard_src_port,
     guard.dest_element as guard_dest_element,
     guard.dest_port as guard_dest_port,
     guard.middle_elements as guard_middle_elements,
     guard.middle_in_ports as guard_middle_in_ports,
-    guard.middle_out_ports as guard_middle_out_ports
+    guard.middle_out_ports as guard_middle_out_ports,
+    temp.gg_name as gg_name
     from non_lte_b_t_view as temp
-    inner join non_lte_tunnels as work
+    left join non_lte_tunnels as work
       on temp.work_tunnel = work.name
-    inner join non_lte_tunnels as guard
+    left join non_lte_tunnels as guard
       on temp.guard_tunnel = guard.name
     `
   return new Promise((resolve, reject) => {
