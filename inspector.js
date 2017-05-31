@@ -10,6 +10,17 @@ const sqlite3 = require("sqlite3").verbose()
 
 const dbfile = path.join(app.getPath("appData"), "Tunnel-Inspector/CMCC.db")
 
+function deleteDb(filePath) {
+  return new Promise((resolve) => {
+    fs.pathExists(filePath, (err, exists) => {
+      if (exists) {
+        fs.remove(filePath, resolve)
+      } else {
+        resolve()
+      }
+    })
+  })
+}
 function clearClassList(element) {
   if (element.classList) {
     while (element.classList.length > 0) {
@@ -263,7 +274,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     resetAllStep()
     showStep("create-table")
-    activeStep("create-table")
     files.forEach((value, key) => {
       if (value) {
         showStep(key)
@@ -279,8 +289,10 @@ document.addEventListener("DOMContentLoaded", () => {
       .modal("show")
 
     const db = new sqlite3.Database(dbfile)
+    await deleteDb(dbfile)
     // db.run("pragma journal_mode=off")
     // db.run("pragma synchronous=off")
+    activeStep("create-table")
     const startTime = Date.now()
     await csv.createTables(db)
     completeStep("create-table", (Date.now() - startTime) / 1000)
