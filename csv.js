@@ -68,15 +68,27 @@ function getAllRecords(db, sql) {
 }
 // promise
 function getRecord(stmt, para) {
-  return new Promise((resolve, reject) => {
-    stmt.get(para, (err, row) => {
-      if (err) {
-        console.log(err)
-        reject(err)
-      }
-      resolve(row)
+  if (para) {
+    return new Promise((resolve, reject) => {
+      stmt.get(para, (err, row) => {
+        if (err) {
+          console.log(err)
+          reject(err)
+        }
+        resolve(row)
+      })
     })
-  })
+  } else {
+    return new Promise((resolve, reject) => {
+      stmt.get((err, row) => {
+        if (err) {
+          console.log(err)
+          reject(err)
+        }
+        resolve(row)
+      })
+    })
+  }
 }
 
 // promise
@@ -469,22 +481,26 @@ function extractPhysicalTunnelPromise(db, file) {
 
 // workRoute, guardRoute result: String
 function commonLogicalTunnel(workRoute, guardRoute) {
+  let emptyTunnle = false
   ;[workRoute, guardRoute].forEach((route) => {
     if (route === "查无此Tunnel" || route === "查无保护组") {
-      return ""
+      emptyTunnle = true
     }
   })
+  if (emptyTunnle) return ""
   const work = workRoute.split("\n")
   const guard = guardRoute.split("\n")
   return work.filter(route => guard.includes(route)).join("\n")
 }
 
 function generateSQL(workRoute, guardRoute) {
+  let emptyTunnle = false
   ;[workRoute, guardRoute].forEach((route) => {
     if (route === "查无此Tunnel" || route === "查无保护组") {
-      return
+      emptyTunnle = true
     }
   })
+  if (emptyTunnle) return ""
   const work = workRoute.split("\n")
   const guard = guardRoute.split("\n")
   const sqls = []
@@ -610,9 +626,9 @@ function writeCSVHeader(ws, encoding) {
     ws.write(iconv.encode(out, encoding))
   }
 }
-function exportToCSV(db, file, type, exportAll, pagination, encoding = "utf8", callback) {
+async function exportToCSV(db, file, type, exportAll, pagination, encoding = "utf8", callback) {
   const view = type === "lte" ? "lte_common_logical_view" : "non_lte_common_logical_view"
-  const sql = `select * from ${view}`
+  const stmt = db.prepare(`select * from ${view}`)
 
   let writeOutCounter = 0
   let page = 1
@@ -622,36 +638,36 @@ function exportToCSV(db, file, type, exportAll, pagination, encoding = "utf8", c
 
   let ws = fs.createWriteStream(path.join(dirname, `${basename}-${page}.csv`))
   writeCSVHeader(ws, encodingLowerCase)
-  let counter = 0
-  db.each(sql, async (err, row) => {
-    const result = await sqlRowToCSVRows(db, row)
-    if (exportAll || result[0][result[0].length - 1] || result[0][result[0].length - 2]) {
-      const out = `${papa.unparse(result, { header: false })}\r\n\r\n`
-      if (encodingLowerCase === "utf8") {
-        ws.write(out)
-      } else {
-        ws.write(iconv.encode(out, encoding))
-      }
-      writeOutCounter += 1
-      if (pagination && writeOutCounter % pagination === 0) {
-        ws.end()
-        page += 1
-        ws = fs.createWriteStream(path.join(dirname, `${basename}-${page}.csv`))
-        writeCSVHeader(ws, encodingLowerCase)
-      }
-    }
-    counter += 1
-  }, (error, total) => {
-    const interval = setInterval(() => {
-      if (counter === total) {
-        clearInterval(interval)
-        ws.end()
-        if (typeof callback === "function") {
-          callback(writeOutCounter)
+  let end = false
+
+  while (!end) {
+    const row = await getRecord(stmt)
+    if (row) {
+      const result = await sqlRowToCSVRows(db, row)
+      if (exportAll || result[0][result[0].length - 1] || result[0][result[0].length - 2]) {
+        const out = `${papa.unparse(result, { header: false })}\r\n\r\n`
+        if (encodingLowerCase === "utf8") {
+          ws.write(out)
+        } else {
+          ws.write(iconv.encode(out, encoding))
+        }
+        writeOutCounter += 1
+        if (pagination && writeOutCounter % pagination === 0) {
+          ws.end()
+          page += 1
+          ws = fs.createWriteStream(path.join(dirname, `${basename}-${page}.csv`))
+          writeCSVHeader(ws, encodingLowerCase)
         }
       }
-    }, 1000)
-  })
+    } else {
+      await finalizePromise(stmt)
+      end = true
+      ws.end()
+      if (typeof callback === "function") {
+        callback(writeOutCounter)
+      }
+    }
+  }
 }
 
 // promise
