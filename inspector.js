@@ -151,8 +151,7 @@ function showStep(idPrefix) {
 }
 
 function newTable(result, type) {
-  const work = result[0]
-  const guard = result[1]
+  const [work, guard] = result
   const element = document.createElement("div")
   element.classList.add("result-item")
   element.innerHTML = `
@@ -166,7 +165,8 @@ function newTable(result, type) {
               <tr> <td><h5>保护Tunnel</h5></td> <td>${guard[4]}</td> </tr>
               <tr> <td><h5>工作路由</h5></td>   <td class="tunnel-cell">${work[5].replace(/\n/g, "<br>")}</td> </tr>
               <tr> <td><h5>保护路由</h5></td>   <td class="tunnel-cell">${guard[5].replace(/\n/g, "<br>")}</td> </tr>
-              <tr> <td><h5>共同路由</h5></td>   <td class="tunnel-cell">${work[6].replace(/\n/g, "<br>")}</td> </tr>
+              <tr> <td><h5>逻辑同路由</h5></td>   <td class="tunnel-cell">${work[6].replace(/\n/g, "<br>")}</td> </tr>
+              <tr> <td><h5>物理同路由</h5></td>   <td class="tunnel-cell">${work[7].replace(/\n/g, "<br>")}</td> </tr>
             </tbody>
           </table>
         </div>
@@ -226,7 +226,9 @@ document.addEventListener("DOMContentLoaded", () => {
           showModalInfo(err)
         } else {
           files.forEach((file) => {
-            if (/共同路由/.test(file)) {
+            if (/光缆链接关系/.test(file)) {
+              fillInputField("physical-tunnel", file)
+            } else if (/共同路由/.test(file)) {
               // do nothing
             } else if (/保护组/.test(file)) {
               fillInputField("guard-group", file)
@@ -292,6 +294,7 @@ document.addEventListener("DOMContentLoaded", () => {
       activeStep(filesArr[i][1])
       const taskST = Date.now()
       const recordCounter = await csv.extractFile(db, filesArr[i][0], filesArr[i][1])
+      // const recordCounter = 100
       completeStep(filesArr[i][1], (Date.now() - taskST) / 1000, recordCounter)
     }
     db.close()
@@ -321,7 +324,7 @@ document.addEventListener("DOMContentLoaded", () => {
       .modal("show")
   })
 
-  document.querySelector(".export.modal button").addEventListener("click", () => {
+  document.querySelector(".export.modal button").addEventListener("click", async () => {
     const LTE = document.querySelector(".export.modal input[value='lte']").checked
     const nonLTE = document.querySelector(".export.modal input[value='non-lte']").checked
     if (!LTE && !nonLTE) {
@@ -343,7 +346,6 @@ document.addEventListener("DOMContentLoaded", () => {
           closable: false,
         })
         .modal("show")
-      const promises = []
       const taskBegin = Date.now()
       let exportEncoding = "utf8"
       if (os.platform() === "win32" && /^6\.1\.760[01]$/.test(os.release())) {
@@ -356,35 +358,37 @@ document.addEventListener("DOMContentLoaded", () => {
         pagination = "0"
       }
 
+      const tasks = []
       if (LTE) {
-        activeStep("exporting-lte")
-        const startTime = Date.now()
         const outFile = path.join(savePath, "LTE业务共同路由.csv")
-        promises.push(new Promise((resolve) => {
-          csv.exportToCSV(db, outFile, "lte", exportAll, Number(pagination), exportEncoding, (recordCounter) => {
-            completeStep("exporting-lte", (Date.now() - startTime) / 1000, recordCounter)
-            resolve()
-          })
-        }))
+        tasks.push({
+          outFile,
+          type: "lte",
+        })
       }
       if (nonLTE) {
-        activeStep("exporting-non-lte")
-        const startTime = Date.now()
         const outFile = path.join(savePath, "非LTE业务共同路由.csv")
-        promises.push(new Promise((resolve) => {
-          csv.exportToCSV(db, outFile, "non-lte", exportAll, Number(pagination), exportEncoding, (recordCounter) => {
-            completeStep("exporting-non-lte", (Date.now() - startTime) / 1000, recordCounter)
-            resolve()
-          })
-        }))
+        tasks.push({
+          outFile,
+          type: "non-lte",
+        })
       }
-      Promise.all(promises).then(() => {
-        db.close()
-        showStep("exported-summary")
-        activeStep("exported-summary")
-        completeStep("exported-summary", (Date.now() - taskBegin) / 1000)
-        document.querySelector(".exporting.modal button").classList.remove("disabled")
-      })
+      for (let i = 0; i < tasks.length; i += 1) {
+        activeStep(`exporting-${tasks[i].type}`)
+        const startTime = Date.now()
+        await new Promise((resolve) => {
+          csv.exportToCSV(db, tasks[i].outFile, tasks[i].type,
+            exportAll, Number(pagination), exportEncoding, (recordCounter) => {
+              completeStep(`exporting-${tasks[i].type}`, (Date.now() - startTime) / 1000, recordCounter)
+              resolve()
+            })
+        })
+      }
+      db.close()
+      showStep("exported-summary")
+      activeStep("exported-summary")
+      completeStep("exported-summary", (Date.now() - taskBegin) / 1000)
+      document.querySelector(".exporting.modal button").classList.remove("disabled")
     }
   })
 
@@ -409,14 +413,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const resultModal = document.querySelector(".query.modal")
     resetResultModal(resultModal)
     const db = new sqlite3.Database(dbfile)
-    const [LTE, nonLTE] = await csv.queryBusiness(db, queryText)
+    const csvRows = await csv.queryBusiness(db, queryText)
     db.close()
-    document.getElementById("record-total").innerHTML = LTE.length + nonLTE.length
-    LTE.forEach((result) => {
-      resultModal.appendChild(newTable(result, "LTE"))
-    })
-    nonLTE.forEach((result) => {
-      resultModal.appendChild(newTable(result, "非LTE"))
+    document.getElementById("record-total").innerHTML = csvRows.length
+    csvRows.forEach((result) => {
+      resultModal.appendChild(newTable(result.rows, result.type))
     })
     $(".query.modal")
       .modal({

@@ -51,7 +51,7 @@ function finalizePromise(stmt) {
     setTimeout(() => {
       stmt.finalize()
       resolve()
-    }, 500)
+    }, 100)
   })
 }
 
@@ -67,9 +67,9 @@ function getAllRecords(db, sql) {
   })
 }
 // promise
-function getRecord(db, sql) {
+function getRecord(stmt, para) {
   return new Promise((resolve, reject) => {
-    db.get(sql, (err, row) => {
+    stmt.get(para, (err, row) => {
       if (err) {
         console.log(err)
         reject(err)
@@ -117,93 +117,92 @@ function split(str) {
 
 // promise
 function createBusinessesTable(db, type = "lte") {
-  let tableName
-  if (type === "lte") {
-    tableName = "lte_businesses"
-  } else {
-    tableName = "non_lte_businesses"
-  }
+  const tableName = type === "lte" ? "lte_businesses" : "non_lte_businesses"
   return new Promise((resolve) => {
-    db.serialize(() => {
-      const stmt = String.raw`CREATE TABLE IF NOT EXISTS "${tableName}" (
-            "id" integer primary key autoincrement,
-            "b_id" text,
-            "name" text not null,
-            "src_element" text not null,
-            "src_port" text not null,
-            "work_dest_element" text not null,
-            "work_dest_port" text not null,
-            "guard_dest_element" text not null,
-            "guard_dest_port" text not null,
-            "work_tunnel" text not null,
-            "guard_tunnel" text not null
-          );`
-      db.run(`drop table if exists ${tableName}`)
-      db.run(stmt, resolve)
-    })
+    const stmt = String.raw`
+      drop table if exists ${tableName};
+      CREATE TABLE IF NOT EXISTS "${tableName}" (
+        "id" integer primary key autoincrement,
+        "b_id" text,
+        "name" text not null,
+        "src_element" text not null,
+        "src_port" text not null,
+        "work_dest_element" text not null,
+        "work_dest_port" text not null,
+        "guard_dest_element" text not null,
+        "guard_dest_port" text not null,
+        "work_tunnel" text not null,
+        "guard_tunnel" text not null
+      );`
+    db.exec(stmt, resolve)
   })
 }
 // promise
 function createTunnelsTable(db, type = "lte") {
-  let tableName
-  if (type === "lte") {
-    tableName = "lte_tunnels"
-  } else {
-    tableName = "non_lte_tunnels"
-  }
+  const tableName = type === "lte" ? "lte_tunnels" : "non_lte_tunnels"
   return new Promise((resolve) => {
-    db.serialize(() => {
-      const stmt = String.raw`CREATE TABLE IF NOT EXISTS "${tableName}" (
-                  "id" integer primary key autoincrement not null,
-                  "t_id" text,
-                  "name" text not null,
-                  "src_element" text not null,
-                  "src_port" text not null,
-                  "dest_element" text not null,
-                  "dest_port" text not null,
-                  "middle_elements" text not null,
-                  "middle_in_ports" text not null,
-                  "middle_out_ports" text not null
-                );`
-      db.run(`drop table if exists ${tableName}`)
-      db.run(stmt, resolve)
-    })
+    const stmt = String.raw`
+      drop table if exists ${tableName};
+      CREATE TABLE IF NOT EXISTS "${tableName}" (
+        "id" integer primary key autoincrement not null,
+        "t_id" text,
+        "name" text not null,
+        "src_element" text not null,
+        "src_port" text not null,
+        "dest_element" text not null,
+        "dest_port" text not null,
+        "middle_elements" text not null,
+        "middle_in_ports" text not null,
+        "middle_out_ports" text not null
+      );`
+    db.exec(stmt, resolve)
   })
 }
 // promise
 function createNonLTETunnelsGuardGroupTable(db) {
   const tableName = "non_lte_tunnels_guard_group"
   return new Promise((resolve) => {
-    db.serialize(() => {
-      const stmt = String.raw`CREATE TABLE IF NOT EXISTS "${tableName}" (
-            "id" integer primary key autoincrement,
-            "name" text not null,
-            "work_tunnel" text not null,
-            "guard_tunnel" text not null
-          );`
-      db.run(`drop table if exists ${tableName}`)
-      db.run(stmt, resolve)
-    })
+    const stmt = String.raw`
+      drop table if exists ${tableName};
+      CREATE TABLE IF NOT EXISTS "${tableName}" (
+        "id" integer primary key autoincrement,
+        "name" text not null,
+        "work_tunnel" text not null,
+        "guard_tunnel" text not null
+      );`
+    db.exec(stmt, resolve)
+  })
+}
+function createPhysicalTunnelsTable(db) {
+  const tableName = "physical_tunnels"
+  return new Promise((resolve) => {
+    const stmt = String.raw`
+      drop table if exists ${tableName};
+      CREATE TABLE IF NOT EXISTS "${tableName}" (
+        "id" integer primary key autoincrement,
+        "name" text not null,
+        "elements" text not null
+      );`
+    db.exec(stmt, resolve)
   })
 }
 // promise
 function createNonLTEBusinessesTable(db) {
   const tableName = "non_lte_businesses"
   return new Promise((resolve) => {
-    db.serialize(() => {
-      const stmt = String.raw`CREATE TABLE IF NOT EXISTS "${tableName}" (
-            "id" integer primary key autoincrement,
-            "b_id" text,
-            "name" text not null,
-            "src_element" text not null,
-            "src_port" text not null,
-            "dest_element" text not null,
-            "dest_port" text not null,
-            "tunnel_name" text not null
-          );`
-      db.run(`drop table if exists ${tableName}`)
-      db.run(stmt, resolve)
-    })
+    const stmt = String.raw`
+      drop table if exists ${tableName};
+      CREATE TABLE IF NOT EXISTS "${tableName}" (
+        "id" integer primary key autoincrement,
+        "b_id" text,
+        "name" text not null,
+        "src_element" text not null,
+        "src_port" text not null,
+        "dest_element" text not null,
+        "dest_port" text not null,
+        "tunnel_name" text not null
+      );`
+    db.exec(stmt, resolve)
   })
 }
 
@@ -374,6 +373,43 @@ async function extractNonLTETunnelsGuardGroup(db, file, callback) {
   })
 }
 
+async function extractPhysicalTunnel(db, file, callback) {
+  const stmt = db.prepare("insert into physical_tunnels (name, elements) values(?,?)")
+  const encoding = await detectEncoding(file)
+  if (encoding === null) {
+    throw new Error("can not detect file's encoding")
+  }
+
+  let recordCounter = 0
+  let firstLine = true
+  db.run("begin transaction")
+  lineReader.eachLine(file, lineReaderOption, async (raw, last) => {
+    const line = iconv.decode(Buffer.from(raw, "binary"), encoding)
+    if (firstLine) {
+      if (/^光路名称,承载光缆,+$/.test(line)) {
+        firstLine = false
+      }
+    } else {
+      const value = papa.parse(line).data[0]
+      if (value) {
+        const elements = []
+        for (let i = 1; i < value.length; i += 1) {
+          if (value[i]) {
+            elements.push(value[i])
+          }
+        }
+        stmtRun(db, stmt, [value[0], elements.join("\n")])
+        recordCounter += 1
+      }
+    }
+    if (last) {
+      await finalizePromise(stmt)
+      db.run("commit")
+      callback(recordCounter)
+    }
+  })
+}
+
 async function extractNonLTEBusinesses(db, file, type, callback) {
   const workTunnelPatten = /^[是|否],[0|1],.*?,.*?,\d*?,.*?,.*?,.*?,.*?,工作,/i
   // const guardTunnelPatten = /^,{9}保护,/i
@@ -425,78 +461,103 @@ function extractNonLTETunnelsGuardGroupPromise(db, file) {
     extractNonLTETunnelsGuardGroup(db, file, resolve)
   })
 }
+function extractPhysicalTunnelPromise(db, file) {
+  return new Promise((resolve, reject) => {
+    extractPhysicalTunnel(db, file, resolve)
+  })
+}
 
 // workRoute, guardRoute result: String
-function common(workRoute, guardRoute) {
-  let work
-  if (workRoute === "查无此Tunnel" || workRoute === "查无保护组") {
-    work = []
-  } else {
-    work = workRoute.split("\n")
-  }
+function commonLogicalTunnel(workRoute, guardRoute) {
+  ;[workRoute, guardRoute].forEach((route) => {
+    if (route === "查无此Tunnel" || route === "查无保护组") {
+      return ""
+    }
+  })
+  const work = workRoute.split("\n")
   const guard = guardRoute.split("\n")
   return work.filter(route => guard.includes(route)).join("\n")
 }
 
-function sqlRowToCSVRow(record, type) {
-  let BDestElement
-  let BDestPort
-  // 从业务表里提取出的隧道名称
-  let TName
-  // 从 Tunnel 表里提取的隧道名称. 如果该名称为空, 说明找不到对应的 Tunnel
-  let TTName
-  let TSrcElement
-  let TSrcPort
-  let TDestElement
-  let TDestPort
-  let TMiddleElements
-  let TMiddleInPorts
-  let TMiddleOutPorts
-  let businessType
+function generateSQL(workRoute, guardRoute) {
+  ;[workRoute, guardRoute].forEach((route) => {
+    if (route === "查无此Tunnel" || route === "查无保护组") {
+      return
+    }
+  })
+  const work = workRoute.split("\n")
+  const guard = guardRoute.split("\n")
+  const sqls = []
+  const temp = []
+  ;[work, guard].forEach((route) => {
+    route.forEach((r) => {
+      temp.push(`name = "${r}"`)
+    })
+    sqls.push(`select group_concat(elements, "
+") as temp from (select elements from physical_tunnels where ${temp.join(" or ")})`)
+    temp.length = 0
+  })
+  return `select group_concat(temp, "
+icymind.com
+") as concat from ( ${sqls[0]} union ${sqls[1]})`
+}
 
-  if (record.hasOwnProperty("gg_name")) {
-    businessType = "non-lte"
-  } else {
-    businessType = "lte"
+function commonPhysicalTunnel(db, workRoute, guardRoute) {
+  const sql = generateSQL(workRoute, guardRoute)
+  // console.log(sql)
+  if (!sql) {
+    return ""
   }
-  if (type === "工作") {
-    BDestElement = record.b_work_dest_element
-    BDestPort = record.b_work_dest_port
-    TName = record.work_name
-    TTName = record.work_tunnel_name
-    TSrcElement = record.work_src_element
-    TSrcPort = record.work_src_port
-    TDestElement = record.work_dest_element
-    TDestPort = record.work_dest_port
-    TMiddleElements = record.work_middle_elements ? record.work_middle_elements.split("\n") : []
-    TMiddleInPorts = record.work_middle_in_ports ? record.work_middle_in_ports.split("\n") : []
-    TMiddleOutPorts = record.work_middle_out_ports ? record.work_middle_out_ports.split("\n") : []
-  } else {
-    BDestElement = record.b_guard_dest_element
-    BDestPort = record.b_guard_dest_port
-    TName = record.guard_name
-    TTName = record.guard_tunnel_name
-    TSrcElement = record.guard_src_element
-    TSrcPort = record.guard_src_port
-    TDestElement = record.guard_dest_element
-    TDestPort = record.guard_dest_port
-    TMiddleElements = record.guard_middle_elements ? record.guard_middle_elements.split("\n") : []
-    TMiddleInPorts = record.guard_middle_in_ports ? record.guard_middle_in_ports.split("\n") : []
-    TMiddleOutPorts = record.guard_middle_out_ports ? record.guard_middle_out_ports.split("\n") : []
-  }
+  return new Promise((resolve, reject) => {
+    db.get(sql, (err, row) => {
+      if (err) {
+        console.log(err)
+        reject(err)
+      } else {
+        resolve(row)
+      }
+    })
+  }).then((row) => {
+    if (!row.concat) {
+      return ""
+    }
+    const rr = row.concat.split("\n")
+    const indexOfSplit = rr.indexOf("icymind.com")
+    const tempSet = new Set(rr.slice(0, indexOfSplit))
+    return Array.from(tempSet).filter(r => rr.slice(indexOfSplit + 1).includes(r)).join("\n")
+  })
+}
+
+function sqlRowToCSVRow(record, type) {
+  const tunnelType = type === "工作" ? "work" : "guard"
+  const BDest = record[`business_${tunnelType}_dest`]
+  // 从业务表里提取出的隧道名称
+  let BTName = record[`business_${tunnelType}_name`]
+  // 从 Tunnel 表里提取的隧道名称. 如果该名称为空, 说明找不到对应的 Tunnel
+  const TTName = record[`tunnel_${tunnelType}_name`]
+  const TSrc = record[`tunnel_${tunnelType}_src`]
+  const TDest = record[`tunnel_${tunnelType}_dest`]
+  const TMiddleElements = record[`tunnel_${tunnelType}_middle_elements`] ?
+    record[`tunnel_${tunnelType}_middle_elements`].split("\n") : []
+  const TMiddleInPorts = record[`tunnel_${tunnelType}_middle_in_ports`] ?
+    record[`tunnel_${tunnelType}_middle_in_ports`].split("\n") : []
+  const TMiddleOutPorts = record[`tunnel_${tunnelType}_middle_out_ports`] ?
+    record[`tunnel_${tunnelType}_middle_out_ports`].split("\n") : []
+  const businessType = record.hasOwnProperty("gg_name") ? "non-lte" : "lte"
+
   const result = []
-  result.push(record.b_name)
+  result.push(record.business_name)
   result.push(type)
-  result.push(`${record.b_src_element}-${record.b_src_port}`)
-  if (!TName || TName === "null") {
-    TName = ""
+  result.push(record.business_src)
+  if (!BTName || BTName === "null") {
+    BTName = ""
   }
-  if (!TName) {
+  if (!BTName) {
     result.push("")
   } else {
-    result.push(`${BDestElement}-${BDestPort}`)
+    result.push(BDest)
   }
-  result.push(`${TName}`)
+  result.push(BTName)
   if (businessType === "non-lte" && (!record.gg_name || record.gg_name === "null")) {
     result.push("查无保护组")
   } else if (businessType === "lte" && (!TTName || TTName === "null")) {
@@ -504,14 +565,14 @@ function sqlRowToCSVRow(record, type) {
   } else {
     const segments = []
     const routes = []
-    segments.push(`${TSrcElement}-${TSrcPort}`)
+    segments.push(TSrc)
     if (TMiddleElements.length === TMiddleInPorts.length
       && TMiddleElements.length === TMiddleOutPorts.length) {
       for (let i = 0, len = TMiddleInPorts.length; i < len; i += 1) {
         segments.push(`${TMiddleElements[i]}-${TMiddleInPorts[i]}`)
         segments.push(`${TMiddleElements[i]}-${TMiddleOutPorts[i]}`)
       }
-      segments.push(`${TDestElement}-${TDestPort}`)
+      segments.push(TDest)
       for (let i = 1, len = segments.length; i < len; i += 2) {
         routes.push(`${segments[i - 1]}___${segments[i]}`)
       }
@@ -524,19 +585,22 @@ function sqlRowToCSVRow(record, type) {
   return result
 }
 
-function sqlRowToCSVRows(row) {
+async function sqlRowToCSVRows(db, row) {
   const work = sqlRowToCSVRow(row, "工作")
   const guard = sqlRowToCSVRow(row, "保护")
   const workRoute = work[work.length - 1]
   const guardRoute = guard[guard.length - 1]
-  const inCommon = common(workRoute, guardRoute)
-  work.push(inCommon)
-  guard.push(inCommon)
+  const inCommonL = commonLogicalTunnel(workRoute, guardRoute)
+  work.push(inCommonL)
+  guard.push(inCommonL)
+  const inCommonP = await commonPhysicalTunnel(db, workRoute, guardRoute)
+  work.push(inCommonP)
+  guard.push(inCommonP)
   return [work, guard]
 }
 
 function writeCSVHeader(ws, encoding) {
-  const header = [["业务名称", "保护形式", "源网元信息", "宿网元信息", "承载Tunnel名称", "承载Tunnel路由", "同路由部分"]]
+  const header = [["业务名称", "保护形式", "源网元信息", "宿网元信息", "承载Tunnel名称", "承载Tunnel路由", "逻辑同路由", "物理同路由"]]
 
   const out = `${papa.unparse(header, { header: false })}\r\n`
   if (encoding === "utf8") {
@@ -547,7 +611,7 @@ function writeCSVHeader(ws, encoding) {
   }
 }
 function exportToCSV(db, file, type, exportAll, pagination, encoding = "utf8", callback) {
-  const view = type === "lte" ? "lte_common_route_view" : "non_lte_common_route_view"
+  const view = type === "lte" ? "lte_common_logical_view" : "non_lte_common_logical_view"
   const sql = `select * from ${view}`
 
   let writeOutCounter = 0
@@ -558,9 +622,10 @@ function exportToCSV(db, file, type, exportAll, pagination, encoding = "utf8", c
 
   let ws = fs.createWriteStream(path.join(dirname, `${basename}-${page}.csv`))
   writeCSVHeader(ws, encodingLowerCase)
-  db.each(sql, (err, row) => {
-    const result = sqlRowToCSVRows(row)
-    if (exportAll || result[0][result[0].length - 1]) {
+  let counter = 0
+  db.each(sql, async (err, row) => {
+    const result = await sqlRowToCSVRows(db, row)
+    if (exportAll || result[0][result[0].length - 1] || result[0][result[0].length - 2]) {
       const out = `${papa.unparse(result, { header: false })}\r\n\r\n`
       if (encodingLowerCase === "utf8") {
         ws.write(out)
@@ -575,11 +640,17 @@ function exportToCSV(db, file, type, exportAll, pagination, encoding = "utf8", c
         writeCSVHeader(ws, encodingLowerCase)
       }
     }
+    counter += 1
   }, (error, total) => {
-    ws.end()
-    if (typeof callback === "function") {
-      callback(writeOutCounter)
-    }
+    const interval = setInterval(() => {
+      if (counter === total) {
+        clearInterval(interval)
+        ws.end()
+        if (typeof callback === "function") {
+          callback(writeOutCounter)
+        }
+      }
+    }, 1000)
   })
 }
 
@@ -598,6 +669,8 @@ function extractFile(db, file, type) {
     return extractNonLTEBusinessesPromise(db, file, "eth")
   case "guard-group":
     return extractNonLTETunnelsGuardGroupPromise(db, file)
+  case "physical-tunnel":
+    return extractPhysicalTunnelPromise(db, file)
   default:
     throw new Error("unsupport file")
   }
@@ -606,33 +679,27 @@ function extractFile(db, file, type) {
 // promise
 function createLTECommonRouteView(db) {
   const sql = String.raw`
-      create view lte_common_route_view as
+    drop view if exists lte_common_logical_view;
+    CREATE VIEW lte_common_logical_view as
       select
-      b.name as b_name,
-      b.src_element as b_src_element,
-      b.src_port as b_src_port,
-      b.work_dest_element as b_work_dest_element,
-      b.work_dest_port as b_work_dest_port,
-      b.guard_dest_element as b_guard_dest_element,
-      b.guard_dest_port as b_guard_dest_port,
-      b.work_tunnel as work_name,
-      w.name as work_tunnel_name,
-      w.src_element as work_src_element,
-      w.src_port as work_src_port,
-      w.dest_element as work_dest_element,
-      w.dest_port as work_dest_port,
-      w.middle_elements as work_middle_elements,
-      w.middle_in_ports as work_middle_in_ports,
-      w.middle_out_ports as work_middle_out_ports,
-      b.guard_tunnel as guard_name,
-      g.name as guard_tunnel_name,
-      g.src_element as guard_src_element,
-      g.src_port as guard_src_port,
-      g.dest_element as guard_dest_element,
-      g.dest_port as guard_dest_port,
-      g.middle_elements as guard_middle_elements,
-      g.middle_in_ports as guard_middle_in_ports,
-      g.middle_out_ports as guard_middle_out_ports
+      b.name as business_name,
+      (b.src_element || "-" || b.src_port) as business_src,
+      (b.work_dest_element || "-" || b.work_dest_port) as business_work_dest,
+      (b.guard_dest_element || "-" || b.guard_dest_port) as business_guard_dest,
+      b.work_tunnel as business_work_name,
+      w.name as tunnel_work_name,
+      (w.src_element || "-" || w.src_port) as tunnel_work_src,
+      (w.dest_element || "-" || w.dest_port) as tunnel_work_dest,
+      w.middle_elements as tunnel_work_middle_elements,
+      w.middle_in_ports as tunnel_work_middle_in_ports,
+      w.middle_out_ports as tunnel_work_middle_out_ports,
+      b.guard_tunnel as business_guard_name,
+      g.name as tunnel_guard_name,
+      (g.src_element || "-" || g.src_port) as tunnel_guard_src,
+      (g.dest_element || "-" || g.dest_port) as tunnel_guard_dest,
+      g.middle_elements as tunnel_guard_middle_elements,
+      g.middle_in_ports as tunnel_guard_middle_in_ports,
+      g.middle_out_ports as tunnel_guard_middle_out_ports
       from lte_businesses as b
       left join lte_tunnels as w
         on b.work_tunnel = w.name
@@ -640,77 +707,66 @@ function createLTECommonRouteView(db) {
         on b.guard_tunnel = g.name
       `
   return new Promise((resolve, reject) => {
-    db.serialize(() => {
-      db.run("drop view if exists lte_common_route_view")
-      db.run(sql, resolve)
-    })
+    db.exec(sql, resolve)
   })
 }
 
 // promise
 function createNonLTEBTView(db) {
   const sql = String.raw`
-    create view non_lte_b_t_view as
-    select
-    b.name as name,
-    b.src_element as src_element,
-    b.src_port as src_port,
-    b.dest_element as work_dest_element,
-    b.dest_port as work_dest_port,
-    b.tunnel_name as work_tunnel,
-    t.guard_tunnel as guard_tunnel,
-    t.name as gg_name
-    from non_lte_businesses as b
-    left join non_lte_tunnels_guard_group as t
-      on b.tunnel_name = t.work_tunnel
-    `
+    drop view if exists non_lte_b_t_view;
+    CREATE VIEW non_lte_b_t_view as
+      select
+      b.name as business_name,
+      (b.src_element || "-" || b.src_port) as business_src,
+      (b.dest_element || "-" || b.dest_port) as business_work_dest,
+      b.tunnel_name as business_work_name,
+      t.work_tunnel as tunnel_work_name,
+      t.guard_tunnel as business_guard_name,
+      t.guard_tunnel as tunnel_guard_name,
+      t.name as gg_name
+      from non_lte_businesses as b
+      left join non_lte_tunnels_guard_group as t
+        on b.tunnel_name = t.work_tunnel
+      `
+
   return new Promise((resolve, reject) => {
-    db.serialize(() => {
-      db.run("drop view if exists non_lte_b_t_view")
-      db.run(sql, resolve)
-    })
+    db.exec(sql, resolve)
   })
 }
 // promise
 function createNonLTECommonRouteView(db) {
   const sql = String.raw`
-    create view non_lte_common_route_view as
-    select
-    temp.name as b_name,
-    temp.src_element as b_src_element,
-    temp.src_port as b_src_port,
-    temp.work_dest_element as b_work_dest_element,
-    temp.work_dest_port as b_work_dest_port,
-    guard.dest_element as b_guard_dest_element,
-    guard.dest_port as b_guard_dest_port,
-    temp.work_tunnel as work_name,
-    work.src_element as work_src_element,
-    work.src_port as work_src_port,
-    work.dest_element as work_dest_element,
-    work.dest_port as work_dest_port,
-    work.middle_elements as work_middle_elements,
-    work.middle_in_ports as work_middle_in_ports,
-    work.middle_out_ports as work_middle_out_ports,
-    temp.guard_tunnel as guard_name,
-    guard.src_element as guard_src_element,
-    guard.src_port as guard_src_port,
-    guard.dest_element as guard_dest_element,
-    guard.dest_port as guard_dest_port,
-    guard.middle_elements as guard_middle_elements,
-    guard.middle_in_ports as guard_middle_in_ports,
-    guard.middle_out_ports as guard_middle_out_ports,
-    temp.gg_name as gg_name
-    from non_lte_b_t_view as temp
-    left join non_lte_tunnels as work
-      on temp.work_tunnel = work.name
-    left join non_lte_tunnels as guard
-      on temp.guard_tunnel = guard.name
+    drop view if exists non_lte_common_logical_view;
+    CREATE VIEW non_lte_common_logical_view as
+      select
+      b.business_name as business_name,
+      b.business_src as business_src,
+      b.business_work_dest as business_work_dest,
+      (g.dest_element || "-" || g.dest_port) as business_guard_dest,
+      b.business_work_name as business_work_name,
+      w.name as tunnel_work_name,
+      (w.src_element || "-" || w.src_port) as tunnel_work_src,
+      (w.dest_element || "-" || w.dest_port) as tunnel_work_dest,
+      w.middle_elements as tunnel_work_middle_elements,
+      w.middle_in_ports as tunnel_work_middle_in_ports,
+      w.middle_out_ports as tunnel_work_middle_out_ports,
+      b.business_guard_name as business_guard_name,
+      g.name as tunnel_guard_name,
+      (g.src_element || "-" || g.src_port) as tunnel_guard_src,
+      (g.dest_element || "-" || g.dest_port) as tunnel_guard_dest,
+      g.middle_elements as tunnel_guard_middle_elements,
+      g.middle_in_ports as tunnel_guard_middle_in_ports,
+      g.middle_out_ports as tunnel_guard_middle_out_ports,
+      b.gg_name as gg_name
+      from non_lte_b_t_view as b
+      left join non_lte_tunnels as w
+        on b.business_work_name = w.name
+      left join non_lte_tunnels as g
+        on b.business_guard_name = g.name
     `
   return new Promise((resolve, reject) => {
-    db.serialize(() => {
-      db.run("drop view if exists non_lte_common_route_view")
-      db.run(sql, resolve)
-    })
+    db.exec(sql, resolve)
   })
 }
 
@@ -722,6 +778,7 @@ function createTables(db) {
     createTunnelsTable(db, "non_lte"),
     createNonLTEBusinessesTable(db),
     createNonLTETunnelsGuardGroupTable(db),
+    createPhysicalTunnelsTable(db),
   ]).then(() => {
     const promises = Promise.all([
       createLTECommonRouteView(db),
@@ -732,11 +789,25 @@ function createTables(db) {
 }
 
 async function queryBusiness(db, name) {
-  const LTEstmt = db.prepare("select * from lte_common_route_view where b_name = ?")
-  const nonLTEstmt = db.prepare("select * from non_lte_common_route_view where b_name = ?")
-  const LTERows = await getAllRecords(LTEstmt, name)
-  const nonLTERows = await getAllRecords(nonLTEstmt, name)
-  return [LTERows.map(row => sqlRowToCSVRows(row)), nonLTERows.map(row => sqlRowToCSVRows(row))]
+  const sql = `select *, NULL from lte_common_logical_view where business_name = "${name}"
+  union select * from non_lte_common_logical_view where business_name = "${name}"`
+
+  const rows = await getAllRecords(db, sql)
+  const results = []
+  const promises = []
+  rows.forEach((row) => {
+    const p = new Promise((resolve, reject) => {
+      sqlRowToCSVRows(db, row).then((csvRows) => {
+        const type = row.hasOwnProperty("gg_name") ? "非LTE" : "LTE"
+        results.push({ rows: csvRows, type })
+        resolve()
+      }).catch(err => console.log(err))
+    })
+    promises.push(p)
+  })
+  await Promise.all(promises)
+  // console.log(results)
+  return results
 }
 
 module.exports = {
