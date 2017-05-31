@@ -805,8 +805,8 @@ function createTables(db) {
 }
 
 async function queryBusiness(db, name) {
-  const sql = `select *, NULL from lte_common_logical_view where business_name = "${name}"
-  union select * from non_lte_common_logical_view where business_name = "${name}"`
+  const sql = `select * from non_lte_common_logical_view where business_name = "${name}"
+  union all select *, "icymind.com" as gg_name from lte_common_logical_view where business_name = "${name}"`
 
   const rows = await getAllRecords(db, sql)
   const results = []
@@ -814,7 +814,8 @@ async function queryBusiness(db, name) {
   rows.forEach((row) => {
     const p = new Promise((resolve, reject) => {
       sqlRowToCSVRows(db, row).then((csvRows) => {
-        const type = row.hasOwnProperty("gg_name") ? "非LTE" : "LTE"
+        console.log(row)
+        const type = row.gg_name === "icymind.com" ? "LTE" : "非LTE"
         results.push({ rows: csvRows, type })
         resolve()
       }).catch(err => console.log(err))
