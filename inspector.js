@@ -177,7 +177,8 @@ function newTable(result, type) {
               <tr> <td><h5>工作路由</h5></td>   <td class="tunnel-cell">${work[5].replace(/\n/g, "<br>")}</td> </tr>
               <tr> <td><h5>保护路由</h5></td>   <td class="tunnel-cell">${guard[5].replace(/\n/g, "<br>")}</td> </tr>
               <tr> <td><h5>逻辑同路由</h5></td>   <td class="tunnel-cell">${work[6].replace(/\n/g, "<br>")}</td> </tr>
-              <tr> <td><h5>物理同路由</h5></td>   <td class="tunnel-cell">${work[7].replace(/\n/g, "<br>")}</td> </tr>
+              <tr> <td><h5>逻辑同节点</h5></td>   <td class="tunnel-cell">${work[7].replace(/\n/g, "<br>")}</td> </tr>
+              <tr> <td><h5>物理同路由</h5></td>   <td class="tunnel-cell">${work[8].replace(/\n/g, "<br>")}</td> </tr>
             </tbody>
           </table>
         </div>

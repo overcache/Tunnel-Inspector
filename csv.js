@@ -493,6 +493,17 @@ function commonLogicalTunnel(workRoute, guardRoute) {
   return work.filter(route => guard.includes(route)).join("\n")
 }
 
+function commonLogicalElement(workMiddleE, guardMiddleE) {
+  let emptyMiddleE = false
+  ;[workMiddleE, guardMiddleE].forEach((elements) => {
+    if (elements.length === 0) {
+      emptyMiddleE = true
+    }
+  })
+  if (emptyMiddleE) return ""
+  return workMiddleE.filter(element => guardMiddleE.includes(element)).join("\n")
+}
+
 function generateSQL(workRoute, guardRoute) {
   let emptyTunnle = false
   ;[workRoute, guardRoute].forEach((route) => {
@@ -598,17 +609,23 @@ function sqlRowToCSVRow(record, type) {
       result.push("")
     }
   }
+  result.push(TMiddleElements)
   return result
 }
 
 async function sqlRowToCSVRows(db, row) {
   const work = sqlRowToCSVRow(row, "工作")
   const guard = sqlRowToCSVRow(row, "保护")
+  const workMiddleE = work.pop()
+  const guardMiddleE = guard.pop()
   const workRoute = work[work.length - 1]
   const guardRoute = guard[guard.length - 1]
   const inCommonL = commonLogicalTunnel(workRoute, guardRoute)
   work.push(inCommonL)
   guard.push(inCommonL)
+  const inCommonE = commonLogicalElement(workMiddleE, guardMiddleE)
+  work.push(inCommonE)
+  guard.push(inCommonE)
   const inCommonP = await commonPhysicalTunnel(db, workRoute, guardRoute)
   work.push(inCommonP)
   guard.push(inCommonP)
@@ -616,7 +633,7 @@ async function sqlRowToCSVRows(db, row) {
 }
 
 function writeCSVHeader(ws, encoding) {
-  const header = [["业务名称", "保护形式", "源网元信息", "宿网元信息", "承载Tunnel名称", "承载Tunnel路由", "逻辑同路由", "物理同路由"]]
+  const header = [["业务名称", "保护形式", "源网元信息", "宿网元信息", "承载Tunnel名称", "承载Tunnel路由", "逻辑同路由", "逻辑同节点", "物理同路由"]]
 
   const out = `${papa.unparse(header, { header: false })}\r\n`
   if (encoding === "utf8") {
@@ -644,20 +661,21 @@ async function exportToCSV(db, file, type, exportAll, pagination, encoding = "ut
     const row = await getRecord(stmt)
     if (row) {
       const result = await sqlRowToCSVRows(db, row)
-      if (exportAll || result[0][result[0].length - 1] || result[0][result[0].length - 2]) {
-        const out = `${papa.unparse(result, { header: false })}\r\n\r\n`
-        if (encodingLowerCase === "utf8") {
-          ws.write(out)
-        } else {
-          ws.write(iconv.encode(out, encoding))
-        }
-        writeOutCounter += 1
-        if (pagination && writeOutCounter % pagination === 0) {
-          ws.end()
-          page += 1
-          ws = fs.createWriteStream(path.join(dirname, `${basename}-${page}.csv`))
-          writeCSVHeader(ws, encodingLowerCase)
-        }
+      if (exportAll || result[0][result[0].length - 1]
+        || result[0][result[0].length - 2] || result[0][result[0].length - 3]) {
+          const out = `${papa.unparse(result, { header: false })}\r\n\r\n`
+          if (encodingLowerCase === "utf8") {
+            ws.write(out)
+          } else {
+            ws.write(iconv.encode(out, encoding))
+          }
+          writeOutCounter += 1
+          if (pagination && writeOutCounter % pagination === 0) {
+            ws.end()
+            page += 1
+            ws = fs.createWriteStream(path.join(dirname, `${basename}-${page}.csv`))
+            writeCSVHeader(ws, encodingLowerCase)
+          }
       }
     } else {
       await finalizePromise(stmt)
@@ -673,22 +691,22 @@ async function exportToCSV(db, file, type, exportAll, pagination, encoding = "ut
 // promise
 function extractFile(db, file, type) {
   switch (type) {
-  case "lteb":
-    return extractBusinessesPromise(db, file)
-  case "ltet":
-    return extractTunnelsPromise(db, file, "lte")
-  case "non-ltet":
-    return extractTunnelsPromise(db, file, "nonlte")
-  case "ces":
-    return extractNonLTEBusinessesPromise(db, file, "ces")
-  case "eth":
-    return extractNonLTEBusinessesPromise(db, file, "eth")
-  case "guard-group":
-    return extractNonLTETunnelsGuardGroupPromise(db, file)
-  case "physical-tunnel":
-    return extractPhysicalTunnelPromise(db, file)
-  default:
-    throw new Error("unsupport file")
+    case "lteb":
+      return extractBusinessesPromise(db, file)
+    case "ltet":
+      return extractTunnelsPromise(db, file, "lte")
+    case "non-ltet":
+      return extractTunnelsPromise(db, file, "nonlte")
+    case "ces":
+      return extractNonLTEBusinessesPromise(db, file, "ces")
+    case "eth":
+      return extractNonLTEBusinessesPromise(db, file, "eth")
+    case "guard-group":
+      return extractNonLTETunnelsGuardGroupPromise(db, file)
+    case "physical-tunnel":
+      return extractPhysicalTunnelPromise(db, file)
+    default:
+      throw new Error("unsupport file")
   }
 }
 
@@ -814,7 +832,6 @@ async function queryBusiness(db, name) {
   rows.forEach((row) => {
     const p = new Promise((resolve, reject) => {
       sqlRowToCSVRows(db, row).then((csvRows) => {
-        console.log(row)
         const type = row.gg_name === "icymind.com" ? "LTE" : "非LTE"
         results.push({ rows: csvRows, type })
         resolve()
