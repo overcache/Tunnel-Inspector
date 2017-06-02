@@ -520,7 +520,12 @@ function generateSQL(workRoute, guardRoute) {
   if (emptyTunnle) return ""
   // const work = workRoute.split("\n")
   // const guard = guardRoute.split("\n")
-  const routes = [workRoute.split("\n"), guardRoute.split("\n")]
+  const originalRoutes = [workRoute.split("\n"), guardRoute.split("\n")]
+  const reversedRoutes = [originalRoutes[0].map(r => r.split("___").reverse().join("___")),
+    originalRoutes[1].map(r => r.split("___").reverse().join("___"))]
+  const routes = [[...originalRoutes[0], ...reversedRoutes[0]],
+    [...originalRoutes[1], ...reversedRoutes[1]]]
+  console.log(routes)
   const sqls = []
   const temp = []
   for (let i = 0; i < 2; i += 1) {
