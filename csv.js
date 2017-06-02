@@ -490,8 +490,14 @@ function commonLogicalTunnel(workRoute, guardRoute) {
   if (emptyTunnle) return ""
   const work = workRoute.split("\n")
   const guard = guardRoute.split("\n")
-  return work.filter(route => guard.includes(route)).join("\n")
+  return work.filter((route) => {
+    // console.log(`route: ${route}`)
+    // console.log(`reverse route: ${route.split("___").reverse().join("___")}`)
+    const reversed = route.split("___").reverse().join("___")
+    return guard.includes(route) || guard.includes(reversed)
+  }).join("\n")
 }
+
 
 function commonLogicalElement(workMiddleE, guardMiddleE) {
   let emptyMiddleE = false
@@ -512,21 +518,26 @@ function generateSQL(workRoute, guardRoute) {
     }
   })
   if (emptyTunnle) return ""
-  const work = workRoute.split("\n")
-  const guard = guardRoute.split("\n")
+  // const work = workRoute.split("\n")
+  // const guard = guardRoute.split("\n")
+  const routes = [workRoute.split("\n"), guardRoute.split("\n")]
   const sqls = []
   const temp = []
-  ;[work, guard].forEach((route) => {
-    route.forEach((r) => {
-      temp.push(`name = "${r}"`)
-    })
-    sqls.push(`select group_concat(elements, "
-") as temp from (select elements from physical_tunnels where ${temp.join(" or ")})`)
+  for (let i = 0; i < 2; i += 1) {
+    routes[i].forEach(route => temp.push(`name = "${route}"`))
+    sqls.push(`select
+      group_concat(name, "$record.icymind.com$") as names_group,
+      group_concat(elements, "$record.icymind.com$") as elements_group,
+      "${i === 0 ? "work" : "guard"}" as type
+      from physical_tunnels where ${temp.join(" or ")}`)
     temp.length = 0
-  })
-  return `select group_concat(temp, "
-icymind.com
-") as concat from ( ${sqls[0]} union ${sqls[1]})`
+  }
+  return ` select
+      group_concat(names_group, "$type.icymind.com$") as names_group,
+      group_concat(elements_group, "$type.icymind.com$") as elements_group,
+      group_concat(type, "$type.icymind.com$") as types_group
+      from
+      ( ${sqls[0]} union ${sqls[1]})`
 }
 
 function commonPhysicalTunnel(db, workRoute, guardRoute) {
@@ -545,13 +556,46 @@ function commonPhysicalTunnel(db, workRoute, guardRoute) {
       }
     })
   }).then((row) => {
-    if (!row.concat) {
+    if (!row.elements_group || row.elements_group.indexOf("$type.icymind.com$") < 0) {
       return ""
     }
-    const rr = row.concat.split("\n")
-    const indexOfSplit = rr.indexOf("icymind.com")
-    const tempSet = new Set(rr.slice(0, indexOfSplit))
-    return Array.from(tempSet).filter(r => rr.slice(indexOfSplit + 1).includes(r)).join("\n")
+    const map = new Map()
+    const names = row.names_group.split("$type.icymind.com$")
+    const elements = row.elements_group.split("$type.icymind.com$")
+    const types = row.types_group.split("$type.icymind.com$")
+    const tunnelNames = [names[types.indexOf("work")].split("$record.icymind.com$"), names[types.indexOf("guard")].split("$record.icymind.com$")]
+    const tunnelElements = [elements[types.indexOf("work")].split("$record.icymind.com$"), elements[types.indexOf("guard")].split("$record.icymind.com$")]
+    const commonSegments = []
+    const setInCurrentLoop = new Map()
+    for (let i = 0; i < tunnelNames.length; i += 1) {
+      const typeName = i ? "guard" : "work"
+      for (let j = 0; j < tunnelNames[i].length; j += 1) {
+        const obj = { name: tunnelNames[i][j], type: typeName }
+        tunnelElements[i][j].split("\n").forEach((segment) => {
+          if (map.has(segment)) {
+            if (i === 1 && !setInCurrentLoop.has(segment)) { commonSegments.push(segment) }
+            map.set(segment, [...map.get(segment), obj])
+            if (i === 1) { setInCurrentLoop.set(segment, true) }
+          } else {
+            map.set(segment, [obj])
+            if (i === 1) { setInCurrentLoop.set(segment, true) }
+          }
+        })
+      }
+    }
+    const result = []
+    commonSegments.forEach((segment) => {
+      const [work, guard] = [[], []]
+      map.get(segment).forEach((obj) => {
+        if (obj.type === "work") {
+          work.push(obj.name)
+        } else {
+          guard.push(obj.name)
+        }
+      })
+      result.push(`${segment}\n工作归属:\n${work.join("\n")}\n保护归属:\n${guard.join("\n")}`)
+    })
+    return result.join("\n\n")
   })
 }
 

@@ -421,8 +421,10 @@ document.addEventListener("DOMContentLoaded", () => {
   })
 
   document.getElementById("query-button").addEventListener("click", async (event) => {
-    const queryText = document.getElementById("query-text").value
-    if (!queryText) return
+    let queryText = document.getElementById("query-text").value
+    if (!queryText) {
+      queryText = "南宁江南区荣宝华商城LTE-网管"
+    }
     const resultModal = document.querySelector(".query.modal")
     resetResultModal(resultModal)
     const db = new sqlite3.Database(dbfile)
