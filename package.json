@@ -28,10 +28,10 @@
     "sqlite3": "^3.1.8"
   },
   "devDependencies": {
-    "electron-builder": "^18.0.1",
+    "electron": "^1.7.2",
+    "electron-builder": "^18.5.1",
     "electron-rebuild": "^1.5.11",
-    "electron": "^1.7.0",
-    "mocha": "^3.4.1",
+    "mocha": "^3.4.2",
     "rewire": "^2.5.2",
     "semantic-ui": "^2.2.10"
   },
@@ -44,5 +44,10 @@
     "mac": {
       "category": "tools"
     }
+  },
+  "standard": {
+    "env": [
+      "mocha"
+    ]
   }
 }
