@@ -686,7 +686,7 @@ function writeCSVHeader (ws, encoding) {
   const out = `${papa.unparse(header, { header: false })}\r\n`
   if (encoding === 'utf8') {
     // ws.write(new Buffer('\xEF\xBB\xBF', 'binary'))
-    ws.write(Buffer.alloc(3, '\xEF\xBB\xBF', 'binary'))
+    ws.write(Buffer.from('\xEF\xBB\xBF', 'binary'))
     ws.write(out)
   } else {
     ws.write(iconv.encode(out, encoding))
