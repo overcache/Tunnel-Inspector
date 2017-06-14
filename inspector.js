@@ -289,8 +289,8 @@ document.addEventListener('DOMContentLoaded', () => {
       })
       .modal('show')
 
-    const db = new sqlite3.Database(dbfile)
     await deleteDb(dbfile)
+    const db = new sqlite3.Database(dbfile)
     // db.run("pragma journal_mode=off")
     // db.run("pragma synchronous=off")
     activeStep('create-table')
