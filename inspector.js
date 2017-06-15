@@ -147,7 +147,7 @@ function resetAllStep () {
     const description = stepDiv.querySelectorAll('div.description')[0]
     description.innerHTML = ''
   })
-  document.querySelector('.exporting.modal button').classList.remove('disabled')
+  document.querySelector('.exporting.modal button').classList.add('disabled')
 }
 function activeStep (idPrefix) {
   const element = document.getElementById(`${idPrefix}-step`)
