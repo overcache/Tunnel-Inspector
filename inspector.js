@@ -28,6 +28,7 @@ function closeDB (db) {
       if (err) {
         reject(db)
       } else {
+        console.log('db close.')
         resolve()
       }
     })
@@ -320,10 +321,11 @@ document.addEventListener('DOMContentLoaded', () => {
       // const recordCounter = 100
       completeStep(filesArr[i][1], (Date.now() - taskST) / 1000, recordCounter)
     }
-    showStep('importing-waitdb')
+    showStep('waitdbclose')
+    activeStep('waitdbclose')
     let taskST = Date.now()
     await closeDB(db)
-    completeStep('importing-waitdb', (Date.now() - taskST) / 1000)
+    completeStep('waitdbclose', (Date.now() - taskST) / 1000)
     showStep('imported-summary')
     activeStep('imported-summary')
     completeStep('imported-summary', (Date.now() - startTime) / 1000)
