@@ -707,7 +707,12 @@ async function exportToCSV (db, file, type, exportAll, pagination, encoding = 'u
   let end = false
 
   while (!end) {
-    const row = await getRecord(stmt)
+    let row
+    try {
+      row = await getRecord(stmt)
+    } catch (e) {
+      console.log(e)
+    }
     if (row) {
       const result = await sqlRowToCSVRows(db, row)
       if (exportAll || result[0][result[0].length - 1] ||
