@@ -21,13 +21,18 @@ function deleteDb (filePath) {
     })
   })
 }
-// function clearClassList (element) {
-//   if (element.classList) {
-//     while (element.classList.length > 0) {
-//       element.classList.remove(element.classList[0])
-//     }
-//   }
-// }
+
+function closeDB (db) {
+  return new Promise((resolve, reject) => {
+    db.close((err) => {
+      if (err) {
+        reject(db)
+      } else {
+        resolve()
+      }
+    })
+  })
+}
 
 function showModalInfo (message) {
   document.getElementById('modal-info').innerHTML = message
@@ -315,9 +320,10 @@ document.addEventListener('DOMContentLoaded', () => {
       // const recordCounter = 100
       completeStep(filesArr[i][1], (Date.now() - taskST) / 1000, recordCounter)
     }
-    db.close((err) => {
-      console.log(`db.close: ${err}`)
-    })
+    showStep('importing-waitdb')
+    let taskST = Date.now()
+    await closeDB(db)
+    completeStep('importing-waitdb', (Date.now() - taskST) / 1000)
     showStep('imported-summary')
     activeStep('imported-summary')
     completeStep('imported-summary', (Date.now() - startTime) / 1000)
@@ -354,9 +360,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const savePath = showOpenDialog(['openDirectory'])
     if (savePath) {
       const db = new sqlite3.Database(dbfile)
-      const db2file = `${dbfile}-copy`
-      await fs.copy(dbfile, db2file)
-      const db2 = new sqlite3.Database(db2file)
+      // const db2file = `${dbfile}-copy`
+      // await fs.copy(dbfile, db2file)
+      // const db2 = new sqlite3.Database(db2file)
       resetAllStep()
       if (LTE) showStep('exporting-lte')
       if (nonLTE) showStep('exporting-non-lte')
@@ -400,7 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
         activeStep(`exporting-${tasks[i].type}`)
         const startTime = Date.now()
         await new Promise((resolve) => {
-          csv.exportToCSV(db, db2, tasks[i].outFile, tasks[i].type,
+          csv.exportToCSV(db, tasks[i].outFile, tasks[i].type,
             exportAll, Number(pagination), exportEncoding, (recordCounter) => {
               completeStep(`exporting-${tasks[i].type}`, (Date.now() - startTime) / 1000, recordCounter)
               resolve()
@@ -408,8 +414,8 @@ document.addEventListener('DOMContentLoaded', () => {
         })
       }
       db.close()
-      db2.close()
-      await fs.remove(db2file)
+      // db2.close()
+      // await fs.remove(db2file)
       showStep('exported-summary')
       activeStep('exported-summary')
       completeStep('exported-summary', (Date.now() - taskBegin) / 1000)
