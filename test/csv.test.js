@@ -4,7 +4,10 @@ const path = require('path')
 const sqlite3 = require('sqlite3').verbose()
 
 const csv = require(path.join(__dirname, '../csv.js'))
-const testDB = '/Users/simon/Desktop/test.db'
+const appData = process.env.APPDATA || (process.platform === 'darwin' ? path.join(process.env.HOME, 'Library/Application Support') : '/var/local')
+const testDB = path.join(appData, 'Tunnel-Inspector/CMCC.db')
+console.log(testDB)
+// const testDB = '/Users/simon/Desktop/test.db'
 describe('Test module csv', function () {
   this.timeout(300000)
 
