@@ -354,7 +354,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const savePath = showOpenDialog(['openDirectory'])
     if (savePath) {
       const db = new sqlite3.Database(dbfile)
-      const db2 = new sqlite3.Database(dbfile)
+      const db2file = `${dbfile}-copy`
+      await fs.copy(dbfile, db2file)
+      const db2 = new sqlite3.Database(db2file)
       resetAllStep()
       if (LTE) showStep('exporting-lte')
       if (nonLTE) showStep('exporting-non-lte')
@@ -407,6 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       db.close()
       db2.close()
+      await fs.remove(db2file)
       showStep('exported-summary')
       activeStep('exported-summary')
       completeStep('exported-summary', (Date.now() - taskBegin) / 1000)
