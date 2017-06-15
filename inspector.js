@@ -302,8 +302,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     await deleteDb(dbfile)
     const db = new sqlite3.Database(dbfile)
-    // db.run("pragma journal_mode=off")
-    // db.run("pragma synchronous=off")
+    db.run('pragma journal_mode=off')
+    db.run('pragma synchronous=off')
     activeStep('create-table')
     const startTime = Date.now()
     await csv.createTables(db)
