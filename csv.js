@@ -707,14 +707,15 @@ async function exportToCSV (db, file, type, exportAll, pagination, encoding = 'u
   let end = false
 
   while (!end) {
-    let row
-    try {
-      row = await getRecord(stmt)
-    } catch (e) {
-      console.log(e)
-    }
+    const row = await getRecord(stmt)
     if (row) {
-      const result = await sqlRowToCSVRows(db, row)
+      // const result = await sqlRowToCSVRows(db, row)
+      let result
+      try {
+        result = await sqlRowToCSVRows(db, row)
+      } catch (e) {
+        console.log(`sqlRowToCSVRows: ${e}`)
+      }
       if (exportAll || result[0][result[0].length - 1] ||
         result[0][result[0].length - 2] || result[0][result[0].length - 3]) {
         const out = `${papa.unparse(result, { header: false })}\r\n\r\n`
