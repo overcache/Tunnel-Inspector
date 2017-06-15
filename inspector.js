@@ -8,7 +8,9 @@ const shell = require('electron').shell
 const csv = require('./csv.js')
 const sqlite3 = require('sqlite3').verbose()
 
-const dbfile = path.join(app.getPath('appData'), 'Tunnel-Inspector/CMCC.db')
+// const dbfile = path.join(app.getPath('appData'), 'Tunnel-Inspector/CMCC.db')
+// const dbfile = ':memory:'
+const db = new sqlite3.Database(':memory:')
 
 function deleteDb (filePath) {
   return new Promise((resolve) => {
@@ -300,8 +302,8 @@ document.addEventListener('DOMContentLoaded', () => {
       })
       .modal('show')
 
-    await deleteDb(dbfile)
-    const db = new sqlite3.Database(dbfile)
+    // await deleteDb(dbfile)
+    // const db = new sqlite3.Database(dbfile)
     db.run('pragma journal_mode=off')
     db.run('pragma synchronous=off')
     activeStep('create-table')
@@ -324,7 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showStep('waitdbclose')
     activeStep('waitdbclose')
     let taskST = Date.now()
-    await closeDB(db)
+    // await closeDB(db)
     completeStep('waitdbclose', (Date.now() - taskST) / 1000)
     showStep('imported-summary')
     activeStep('imported-summary')
@@ -361,7 +363,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const savePath = showOpenDialog(['openDirectory'])
     if (savePath) {
-      const db = new sqlite3.Database(dbfile)
+      // const db = new sqlite3.Database(dbfile)
       // const db2file = `${dbfile}-copy`
       // await fs.copy(dbfile, db2file)
       // const db2 = new sqlite3.Database(db2file)
@@ -415,7 +417,7 @@ document.addEventListener('DOMContentLoaded', () => {
             })
         })
       }
-      db.close()
+      // db.close()
       // db2.close()
       // await fs.remove(db2file)
       showStep('exported-summary')
@@ -447,7 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const resultModal = document.querySelector('.query.modal')
     resetResultModal(resultModal)
-    const db = new sqlite3.Database(dbfile)
+    // const db = new sqlite3.Database(dbfile)
     const csvRows = await csv.queryBusiness(db, queryText)
     db.close()
     document.getElementById('record-total').innerHTML = csvRows.length
