@@ -3,7 +3,7 @@ const fs = require('fs-extra')
 const path = require('path')
 const os = require('os')
 const glob = require('glob')
-const { dialog, app } = require('electron').remote
+const { dialog, app, getCurrentWindow } = require('electron').remote
 const shell = require('electron').shell
 const csv = require('./csv.js')
 const sqlite3 = require('sqlite3').verbose()
@@ -147,6 +147,7 @@ function resetAllStep () {
     const description = stepDiv.querySelectorAll('div.description')[0]
     description.innerHTML = ''
   })
+  document.querySelector('.exporting.modal button').classList.remove('disabled')
 }
 function activeStep (idPrefix) {
   const element = document.getElementById(`${idPrefix}-step`)
@@ -199,6 +200,10 @@ document.addEventListener('DOMContentLoaded', () => {
   $('.ui.dropdown').dropdown()
   $('.ui.checkbox').checkbox()
   document.getElementById('version').innerHTML = app.getVersion()
+
+  document.getElementById('dev-tools').addEventListener('click', () => {
+    getCurrentWindow().toggleDevTools()
+  })
 
   document.getElementById('about').addEventListener('click', () => {
     $('.about.modal')
@@ -310,7 +315,9 @@ document.addEventListener('DOMContentLoaded', () => {
       // const recordCounter = 100
       completeStep(filesArr[i][1], (Date.now() - taskST) / 1000, recordCounter)
     }
-    db.close()
+    db.close((err) => {
+      console.log(`db.close: ${err}`)
+    })
     showStep('imported-summary')
     activeStep('imported-summary')
     completeStep('imported-summary', (Date.now() - startTime) / 1000)

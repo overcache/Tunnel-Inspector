@@ -719,6 +719,7 @@ async function exportToCSV (db, file, type, exportAll, pagination, encoding = 'u
           ws.write(iconv.encode(out, encoding))
         }
         writeOutCounter += 1
+        console.log(`${type}: ${writeOutCounter}`)
         if (pagination && writeOutCounter % pagination === 0) {
           ws.end()
           page += 1
