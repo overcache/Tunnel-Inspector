@@ -354,6 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const savePath = showOpenDialog(['openDirectory'])
     if (savePath) {
       const db = new sqlite3.Database(dbfile)
+      const db2 = new sqlite3.Database(dbfile)
       resetAllStep()
       if (LTE) showStep('exporting-lte')
       if (nonLTE) showStep('exporting-non-lte')
@@ -397,7 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
         activeStep(`exporting-${tasks[i].type}`)
         const startTime = Date.now()
         await new Promise((resolve) => {
-          csv.exportToCSV(db, tasks[i].outFile, tasks[i].type,
+          csv.exportToCSV(db, db2, tasks[i].outFile, tasks[i].type,
             exportAll, Number(pagination), exportEncoding, (recordCounter) => {
               completeStep(`exporting-${tasks[i].type}`, (Date.now() - startTime) / 1000, recordCounter)
               resolve()
@@ -405,6 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
         })
       }
       db.close()
+      db2.close()
       showStep('exported-summary')
       activeStep('exported-summary')
       completeStep('exported-summary', (Date.now() - taskBegin) / 1000)

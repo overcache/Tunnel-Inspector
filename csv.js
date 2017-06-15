@@ -692,7 +692,7 @@ function writeCSVHeader (ws, encoding) {
     ws.write(iconv.encode(out, encoding))
   }
 }
-async function exportToCSV (db, file, type, exportAll, pagination, encoding = 'utf8', callback) {
+async function exportToCSV (db, db2, file, type, exportAll, pagination, encoding = 'utf8', callback) {
   const view = type === 'lte' ? 'lte_common_logical_view' : 'non_lte_common_logical_view'
   const stmt = db.prepare(`select * from ${view}`)
 
@@ -710,12 +710,7 @@ async function exportToCSV (db, file, type, exportAll, pagination, encoding = 'u
     const row = await getRecord(stmt)
     if (row) {
       // const result = await sqlRowToCSVRows(db, row)
-      let result
-      try {
-        result = await sqlRowToCSVRows(db, row)
-      } catch (e) {
-        console.log(`sqlRowToCSVRows: ${e}`)
-      }
+      const result = await sqlRowToCSVRows(db2, row)
       if (exportAll || result[0][result[0].length - 1] ||
         result[0][result[0].length - 2] || result[0][result[0].length - 3]) {
         const out = `${papa.unparse(result, { header: false })}\r\n\r\n`
