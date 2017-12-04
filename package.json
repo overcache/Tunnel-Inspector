@@ -1,0 +1,52 @@
+{
+  "name": "Tunnel-Inspector",
+  "version": "1.2.4",
+  "description": "CMCC tunnel inspector",
+  "main": "main.js",
+  "scripts": {
+    "test": "mocha",
+    "start": "electron .",
+    "build": "build",
+    "build-win32": "build --win --ia32",
+    "build-win64": "build --win --x64"
+  },
+  "keywords": [
+    "cmcc",
+    "tunnel"
+  ],
+  "author": "icymind (icymindt@gmail.com)",
+  "license": "ISC",
+  "dependencies": {
+    "chai": "^3.5.0",
+    "fs-extra": "^3.0.1",
+    "glob": "^7.1.2",
+    "iconv-lite": "^0.4.17",
+    "jquery": "^3.2.1",
+    "jschardet": "^1.4.2",
+    "line-reader": "^0.4.0",
+    "papaparse": "^4.3.2",
+    "sqlite3": "^3.1.13"
+  },
+  "devDependencies": {
+    "electron": "^1.8.1",
+    "electron-builder": "^18.8.1",
+    "electron-rebuild": "^1.5.11",
+    "mocha": "^3.5.3",
+    "rewire": "^2.5.2"
+  },
+  "build": {
+    "appId": "com.icymind.tunnelinspector",
+    "compression": "maximum",
+    "win": {
+      "icon": "./logo.ico"
+    },
+    "mac": {
+      "category": "tools"
+    }
+  },
+  "standard": {
+    "env": [
+      "mocha"
+    ]
+  }
+}
